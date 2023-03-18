@@ -7,14 +7,14 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "prepare": "husky",
+    "format": "prettier --write ."
   },
   "dependencies": {
     "@react-three/drei": "^9.102.3",
     "@react-three/fiber": "^8.15.19",
     "@react-three/postprocessing": "^2.16.2",
-    "@types/lodash": "^4.17.0",
-    "@types/three": "^0.162.0",
     "gsap": "^3.12.5",
     "lodash": "^4.17.21",
     "react": "^18.2.0",
@@ -22,15 +22,37 @@
     "three": "^0.162.0"
   },
   "devDependencies": {
+    "@types/lodash": "^4.17.0",
     "@types/react": "^18.2.64",
     "@types/react-dom": "^18.2.21",
+    "@types/three": "^0.162.0",
     "@typescript-eslint/eslint-plugin": "^7.1.1",
     "@typescript-eslint/parser": "^7.1.1",
     "@vitejs/plugin-react-swc": "^3.5.0",
     "eslint": "^8.57.0",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.5",
+    "husky": "^9.0.11",
+    "lint-staged": "^15.2.2",
+    "prettier": "^3.2.5",
+    "prettier-plugin-organize-imports": "^3.2.4",
     "typescript": "^5.2.2",
     "vite": "^5.1.6"
+  },
+  "prettier": {
+    "trailingComma": "es5",
+    "printWidth": 120,
+    "tabWidth": 2,
+    "useTabs": false,
+    "semi": true,
+    "singleQuote": true
+  },
+  "lint-staged": {
+    "**/*.{ts,tsx}": "eslint --fix --report-unused-disable-directives --max-warnings 0",
+    "**/*": "prettier --write --ignore-unknown"
+  },
+  "volta": {
+    "node": "20.11.0",
+    "yarn": "1.21.1"
   }
 }
