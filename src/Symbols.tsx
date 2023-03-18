@@ -24,11 +24,11 @@ export function Symbols() {
   }, []);
 
   return (
-    <group ref={groupRef} dispose={null} position={[0, 0, 3]}>
-      <mesh geometry={xGeometry} rotation={[Math.PI / 2, -Math.PI, 0]} scale={10} position={[3, -3, 1.75]}>
+    <group ref={groupRef} dispose={null} position={[0, 0, 5]}>
+      <mesh geometry={xGeometry} rotation={[Math.PI / 2, -Math.PI, 0]} scale={15} position={[-1.5, -10, 0.25]}>
         <meshStandardMaterial color="#E72929" emissive="#E72929" emissiveIntensity={20} />
       </mesh>
-      <mesh geometry={oGeometry} rotation={[0, Math.PI / 2, 0]} scale={10} position={[-3, 3, 1.75]}>
+      <mesh geometry={oGeometry} rotation={[0, Math.PI / 2, 0]} scale={15} position={[-10, -1.5, 0.25]}>
         <meshStandardMaterial color="#299CE7" emissive="#299CE7" emissiveIntensity={20} />
       </mesh>
     </group>

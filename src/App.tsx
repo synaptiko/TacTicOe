@@ -8,7 +8,8 @@ import { Laser } from './Laser';
 import { Field } from './Field';
 import { Symbols } from './Symbols';
 
-const enableAllEffects = false;
+const isDevelopmentMode = import.meta.env.MODE === 'development';
+const enableAllEffects = !isDevelopmentMode;
 
 function App() {
   const [colors, setColors] = useState(new Map<string, string>());
@@ -29,7 +30,7 @@ function App() {
     <div id="canvas-container">
       <Canvas camera={{ fov: 25, near: 0.1, far: 1000, up: [0, 0, 1], position: [10, 10, 5] }}>
         <Suspense fallback={null}>
-          <OrbitControls />
+          {isDevelopmentMode && <OrbitControls />}
           <Environment preset="dawn" />
           <color attach="background" args={['#7b627c']} />
           <directionalLight color="white" intensity={3} position={[10, 0, 100]} />
