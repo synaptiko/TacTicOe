@@ -1,7 +1,7 @@
 import { Canvas, MaterialNode, ThreeEvent, extend } from '@react-three/fiber'
 import { times } from 'lodash';
 import { useState } from 'react';
-import { Bloom, EffectComposer } from '@react-three/postprocessing';
+import { Bloom, ChromaticAberration, DepthOfField, EffectComposer, Noise, Vignette } from '@react-three/postprocessing';
 import { Environment } from '@react-three/drei';
 import { MeshStandardMaterial, WebGLProgramParametersWithUniforms } from 'three';
 
@@ -13,7 +13,7 @@ function Laser({ color }: LaserProps) {
   return (
     <mesh position={[0, 0, 2]}>
       <boxGeometry args={[0.005, 0.005, 4]} />
-      <meshStandardMaterial emissive={color === 'red' ? 'hotpink' : 'skyblue'} emissiveIntensity={5} />
+      <meshStandardMaterial emissive={color === 'red' ? 'hotpink' : 'skyblue'} emissiveIntensity={12} />
     </mesh>
   );
 }
@@ -99,12 +99,12 @@ function App() {
         ))}
         {false && <Laser color="red" />}
         <EffectComposer>
-          <Bloom
-            luminanceThreshold={3}
-            luminanceSmoothing={0}
-            resolutionX={1024}
-            resolutionY={1024}
-          />
+          <DepthOfField focusDistance={0} focalLength={0.02} bokehScale={2} resolutionX={2048} resolutionY={2048} />
+          <Bloom luminanceThreshold={3} luminanceSmoothing={0} opacity={0.5} resolutionX={2048} resolutionY={2048} />
+          <ChromaticAberration modulationOffset={1/3} radialModulation />
+          <Noise opacity={0.0125} />
+          <Noise opacity={0.125} premultiply />
+          <Vignette eskil={false} offset={0.25} darkness={0.5} />
         </EffectComposer>
       </Canvas>
     </div>
