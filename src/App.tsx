@@ -1,7 +1,9 @@
-import { Canvas, ThreeEvent } from '@react-three/fiber'
+import { Canvas, MaterialNode, ThreeEvent, extend } from '@react-three/fiber'
 import { times } from 'lodash';
 import { useState } from 'react';
 import { Bloom, EffectComposer } from '@react-three/postprocessing';
+import { Environment } from '@react-three/drei';
+import { MeshStandardMaterial, WebGLProgramParametersWithUniforms } from 'three';
 
 type LaserProps = {
   color: 'red' | 'blue'
@@ -14,6 +16,55 @@ function Laser({ color }: LaserProps) {
       <meshStandardMaterial emissive={color === 'red' ? 'hotpink' : 'skyblue'} emissiveIntensity={5} />
     </mesh>
   );
+}
+
+class CustomMaterial extends MeshStandardMaterial {
+  onBeforeCompile(parameters: WebGLProgramParametersWithUniforms) {
+    parameters.vertexShader = parameters.vertexShader
+      .replace(
+        '#define STANDARD',
+        '#define STANDARD\nvarying vec2 vMyUv;\nvarying vec3 vMyNormal;'
+      )
+      .replace(
+        'vWorldPosition = worldPosition.xyz;\n#endif',
+        'vWorldPosition = worldPosition.xyz;\n#endif\nvMyUv = uv;\nvMyNormal = normal;'
+      );
+
+    parameters.fragmentShader = parameters.fragmentShader
+      .replace(
+        '#define STANDARD',
+        '#define STANDARD\nvarying vec2 vMyUv;\nvarying vec3 vMyNormal;'
+      )
+      .replace(
+        'vec4 diffuseColor = vec4( diffuse, opacity );',
+        `vec4 diffuseColor = vec4( diffuse, opacity );
+
+          vec3 upVector = vec3(0.0, 0.0, 1.0);
+          if (dot(vMyNormal, upVector) > 0.99) {
+            float edgeWidth = 0.03;
+            float edgeTransition = 0.01;
+            float edgeStart = edgeWidth - edgeTransition;
+            float edgeBlend = smoothstep(edgeStart, edgeWidth, vMyUv.x);
+            edgeBlend *= smoothstep(edgeStart, edgeWidth, vMyUv.y);
+            edgeBlend *= smoothstep(edgeStart, edgeWidth, 1.0 - vMyUv.x);
+            edgeBlend *= smoothstep(edgeStart, edgeWidth, 1.0 - vMyUv.y);
+
+            vec3 edgeColor = diffuseColor.rgb * 0.125;
+            diffuseColor.rgb = mix(diffuseColor.rgb, edgeColor, 1.0 - edgeBlend);
+          } else {
+            diffuseColor.rgb = diffuseColor.rgb * 0.125;
+          }
+        `
+      );
+  }
+}
+
+extend({ CustomMaterial });
+
+declare module '@react-three/fiber' {
+  interface ThreeElements {
+    customMaterial: MaterialNode<CustomMaterial, typeof CustomMaterial>
+  }
 }
 
 function App() {
@@ -35,26 +86,26 @@ function App() {
   return (
     <div id="canvas-container">
       <Canvas camera={{ fov: 25, near: 0.1, far: 1000, up: [0, 0, 1], position: [10, 10, 5] }}>
-        <ambientLight intensity={0.75} />
-        <directionalLight color="white" position={[0, 0, 100]} />
+        <Environment preset="dawn" />
+        <color attach="background" args={['#7b627c']} />
+        <directionalLight color="white" intensity={3} position={[10, 0, 100]} />
         {times(7, (x: number) => (
           times(7, (y: number) => (
-            <mesh key={`${x}:${y}`} position={[x * 1.1 - 3 * 1.1, y * 1.1 - 3 * 1.1, -5]} onClick={(event) => handleClick(event, x, y)}>
+            <mesh key={`${x}:${y}`} position={[x - 3, y - 3, -5]} onClick={(event) => handleClick(event, x, y)}>
               <boxGeometry args={[1, 1, 10]} />
-              <meshStandardMaterial color={colors.get(`${x}:${y}`) ?? "gray"} />
+              <customMaterial color={colors.get(`${x}:${y}`) ?? "gray"} />
             </mesh>
           ))
         ))}
         {false && <Laser color="red" />}
         <EffectComposer>
           <Bloom
-            luminanceThreshold={1}
+            luminanceThreshold={3}
             luminanceSmoothing={0}
             resolutionX={1024}
             resolutionY={1024}
           />
         </EffectComposer>
-        <color attach="background" args={['skyblue']} />
       </Canvas>
     </div>
   );
