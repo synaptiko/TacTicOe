@@ -1,10 +1,16 @@
 import { Canvas, MaterialNode, ThreeEvent, extend } from '@react-three/fiber'
 import { times } from 'lodash';
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { Bloom, ChromaticAberration, DepthOfField, EffectComposer, Noise, Vignette } from '@react-three/postprocessing';
-import { Environment } from '@react-three/drei';
-import { Mesh, MeshStandardMaterial, Vector4, WebGLProgramParametersWithUniforms } from 'three';
+import { Environment, OrbitControls, useGLTF } from '@react-three/drei';
+import { BufferGeometry, Group, Mesh, MeshStandardMaterial, Vector4, WebGLProgramParametersWithUniforms } from 'three';
 import gsap from 'gsap';
+import symbolsUrl from './symbols.glb?url';
+
+useGLTF.preload(symbolsUrl);
+
+// Red player color: #E72929
+// Blue player color: #299CE7
 
 class CustomMaterial extends MeshStandardMaterial {
   uEdges!: Vector4;
@@ -70,12 +76,27 @@ declare module '@react-three/fiber' {
 }
 
 type LaserProps = {
+  x: number;
+  y: number;
   color: 'red' | 'blue'
 }
 
-function Laser({ color }: LaserProps) {
+function Laser({ x, y, color }: LaserProps) {
+  const meshRef = useRef<Mesh>(null!);
+
+  useEffect(() => {
+    gsap.to(meshRef.current.position, {
+      x: x - 3,
+      y: y - 3,
+      z: 2,
+      duration: 0.125,
+      delay: 1.25,
+      ease: "power4.inOut",
+    });
+  }, [x, y]);
+
   return (
-    <mesh position={[0, 0, 2]}>
+    <mesh position={[x - 3, y - 3, 6]} ref={meshRef}>
       <boxGeometry args={[0.005, 0.005, 4]} />
       <meshStandardMaterial emissive={color === 'red' ? 'hotpink' : 'skyblue'} emissiveIntensity={12} />
     </mesh>
@@ -111,6 +132,34 @@ function Field({ x, y, color, onClick }: FieldProps) {
   </mesh>
 }
 
+function Symbols() {
+  const { nodes: { x, o } } = useGLTF(symbolsUrl);
+  const xGeometry = 'geometry' in x && x.geometry instanceof BufferGeometry ? x.geometry : undefined;
+  const oGeometry = 'geometry' in o && o.geometry instanceof BufferGeometry ? o.geometry : undefined;
+  const groupRef = useRef<Group>(null!);
+
+  useEffect(() => {
+    gsap.to(groupRef.current.position, {
+      x: 0,
+      y: 0,
+      z: 0,
+      duration: 1,
+      ease: "power4.inOut",
+    });
+  }, []);
+
+  return (
+    <group ref={groupRef} dispose={null} position={[0, 0, 3]}>
+      <mesh geometry={xGeometry} rotation={[Math.PI / 2, -Math.PI, 0]} scale={10} position={[3, -3, 1.75]}>
+        <meshStandardMaterial color="#E72929" emissive="#E72929" emissiveIntensity={20} />
+      </mesh>
+      <mesh geometry={oGeometry} rotation={[0, Math.PI / 2, 0]} scale={10} position={[-3, 3, 1.75]}>
+        <meshStandardMaterial color="#299CE7" emissive="#299CE7" emissiveIntensity={20} />
+      </mesh>
+    </group>
+  )
+}
+
 function App() {
   const [colors, setColors] = useState(new Map<string, string>());
   const [isX, setIsX] = useState(false);
@@ -129,29 +178,34 @@ function App() {
   return (
     <div id="canvas-container">
       <Canvas camera={{ fov: 25, near: 0.1, far: 1000, up: [0, 0, 1], position: [10, 10, 5] }}>
-        <Environment preset="dawn" />
-        <color attach="background" args={['#7b627c']} />
-        <directionalLight color="white" intensity={3} position={[10, 0, 100]} />
-        {times(7, (x: number) => (
-          times(7, (y: number) => (
-            <Field
-              key={`${x}:${y}`}
-              x={x}
-              y={y}
-              color={colors.get(`${x}:${y}`) ?? "gray"}
-              onClick={handleClick}
-            />
-          ))
-        ))}
-        {false && <Laser color="red" />}
-        <EffectComposer>
-          <DepthOfField focusDistance={0} focalLength={0.02} bokehScale={2} resolutionX={2048} resolutionY={2048} />
-          <Bloom luminanceThreshold={3} luminanceSmoothing={0} opacity={0.5} resolutionX={2048} resolutionY={2048} />
-          <ChromaticAberration modulationOffset={1/3} radialModulation />
-          <Noise opacity={0.0125} />
-          <Noise opacity={0.125} premultiply />
-          <Vignette eskil={false} offset={0.25} darkness={0.5} />
-        </EffectComposer>
+        <Suspense fallback={null}>
+          <OrbitControls />
+          <Environment preset="dawn" />
+          <color attach="background" args={['#7b627c']} />
+          <directionalLight color="white" intensity={3} position={[10, 0, 100]} />
+          <Symbols />
+          {times(7, (x: number) => (
+            times(7, (y: number) => (
+              <Field
+                key={`${x}:${y}`}
+                x={x}
+                y={y}
+                color={colors.get(`${x}:${y}`) ?? "gray"}
+                onClick={handleClick}
+              />
+            ))
+          ))}
+          {true && <Laser color="red" x={4} y={2} />}
+          {true && <Laser color="blue" x={2} y={4} />}
+          <EffectComposer>
+            <DepthOfField focusDistance={0} focalLength={0.02} bokehScale={2} resolutionX={2048} resolutionY={2048} />
+            <Bloom luminanceThreshold={3} luminanceSmoothing={0} opacity={0.5} resolutionX={2048} resolutionY={2048} />
+            <ChromaticAberration modulationOffset={1/3} radialModulation />
+            <Noise opacity={0.0125} />
+            <Noise opacity={0.125} premultiply />
+            <Vignette eskil={false} offset={0.25} darkness={0.5} />
+          </EffectComposer>
+        </Suspense>
       </Canvas>
     </div>
   );
