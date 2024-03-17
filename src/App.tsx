@@ -9,9 +9,6 @@ import symbolsUrl from './symbols.glb?url';
 
 useGLTF.preload(symbolsUrl);
 
-// Red player color: #E72929
-// Blue player color: #299CE7
-
 class CustomMaterial extends MeshStandardMaterial {
   uEdges!: Vector4;
 
@@ -170,7 +167,7 @@ function App() {
     event.stopPropagation();
 
     if (!colors.has(key)) {
-      setColors(colors.set(key, isX ? 'hotpink' : 'darkblue'));
+      setColors(colors.set(key, isX ? '#E72929' : '#299CE7'));
       setIsX(prev => !prev)
     }
   }
