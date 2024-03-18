@@ -91,7 +91,44 @@ varying vec3 vViewPosition;
 #include <clipping_planes_pars_fragment>
 
 // <TacTicOe>
+// float drawArc(vec2 position, vec2 center, float radius, float startAngle, float endAngle, float smoothness) {
+//   vec2 direction = position - center;
+//   float distance = length(direction);
+//   float angle = atan(direction.y, direction.x);
+
+//   if (angle < 0.0)
+//     angle += 2.0 * 3.14159265359; // Adjust angle to be in [0, 2*PI]
+
+//   float inArc = step(startAngle, angle) * step(angle, endAngle);
+//   float edgeDistance = smoothstep(radius - smoothness, radius, distance) - smoothstep(radius, radius + smoothness, distance);
+
+//   return inArc * edgeDistance;
+// }
+
+float drawArc(vec2 position, vec2 center, float radius, float startAngle, float endAngle, float thickness, float smoothness) {
+  vec2 direction = position - center;
+  float distance = length(direction);
+  float angle = atan(direction.y, direction.x);
+
+  if (angle < 0.0)
+    angle += 2.0 * 3.14159265359; // Adjust angle to be in [0, 2*PI]
+
+  float inArc = step(startAngle, angle) * step(angle, endAngle);
+
+  // Calculate inner and outer edge of the arc
+  float innerEdge = radius - thickness * 0.5;
+  float outerEdge = radius + thickness * 0.5;
+
+  // Apply smoothness on both inner and outer edges
+  float alpha = inArc * (smoothstep(innerEdge - smoothness, innerEdge, distance) - smoothstep(outerEdge, outerEdge + smoothness, distance));
+
+  return alpha;
+}
+
+
 vec4 drawField(vec4 diffuseColor) {
+  vec3 strokeColor = diffuseColor.rgb * 0.125;
+  vec3 sideColor = diffuseColor.rgb * 0.125;
   vec4 newDiffuseColor = diffuseColor;
   vec3 upVector = vec3(0.0, 0.0, 1.0);
 
@@ -114,10 +151,21 @@ vec4 drawField(vec4 diffuseColor) {
       edgeBlend *= smoothstep(edgeStart, edgeWidth, 1.0 - vMyUv.y);
     }
 
-    vec3 edgeColor = diffuseColor.rgb * 0.125;
-    newDiffuseColor.rgb = mix(diffuseColor.rgb, edgeColor, 1.0 - edgeBlend);
+    newDiffuseColor.rgb = mix(newDiffuseColor.rgb, strokeColor, 1.0 - edgeBlend);
+
+    vec2 center = vec2(0.5, 0.5);
+    float radius = 0.3;
+    float startAngle = 0.0;
+    float endAngle = 3.14159265359 * 1.5;
+    float thickness = 0.05;
+    float smoothness = 0.01 / 2.0;
+
+    float alpha = drawArc(vMyUv, center, radius, startAngle, endAngle, thickness, smoothness);
+    alpha = max(alpha, drawArc(vMyUv, center, radius / 1.5, startAngle, endAngle, thickness, smoothness));
+
+    newDiffuseColor.rgb = mix(newDiffuseColor.rgb, strokeColor, alpha);
   } else {
-    newDiffuseColor.rgb = diffuseColor.rgb * 0.125;
+    newDiffuseColor.rgb = sideColor;
   }
 
   return newDiffuseColor;
