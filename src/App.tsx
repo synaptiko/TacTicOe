@@ -3,25 +3,23 @@ import { times } from 'lodash';
 import { Suspense, useState } from 'react';
 import { Bloom, ChromaticAberration, DepthOfField, EffectComposer, Noise, Vignette } from '@react-three/postprocessing';
 import { Environment, OrbitControls } from '@react-three/drei';
-import './FieldMaterial';
+import './CellMaterial';
 import { Laser } from './Laser';
-import { Field } from './Field';
+import { Cell, Player, Position } from './Cell';
 import { Symbols } from './Symbols';
 
 const isDevelopmentMode = import.meta.env.MODE === 'development';
 const enableAllEffects = !isDevelopmentMode;
 
 function App() {
-  const [colors, setColors] = useState(new Map<string, string>());
-  const [isX, setIsX] = useState(false);
+  const [playerPositions, setPlayerPositions] = useState(new Map<Position, Player>());
+  const [isX, setIsX] = useState(true);
 
-  function handleClick(event: ThreeEvent<MouseEvent>, x: number, y: number) {
-    const key = `${x}:${y}`;
-
+  function handleClick(event: ThreeEvent<MouseEvent>, position: Position) {
     event.stopPropagation();
 
-    if (!colors.has(key)) {
-      setColors(colors.set(key, isX ? '#E72929' : '#299CE7'));
+    if (!playerPositions.has(position)) {
+      setPlayerPositions((map) => map.set(position, isX ? 'x' : 'o'));
       setIsX((prev) => !prev);
     }
   }
@@ -37,11 +35,11 @@ function App() {
           <Symbols />
           {times(7, (x: number) =>
             times(7, (y: number) => (
-              <Field key={`${x}:${y}`} x={x} y={y} color={colors.get(`${x}:${y}`) ?? 'gray'} onClick={handleClick} />
+              <Cell key={`${x}:${y}`} x={x} y={y} player={playerPositions.get(`${x}:${y}`)} onClick={handleClick} />
             ))
           )}
-          {true && <Laser color="red" x={4} y={2} />}
-          {true && <Laser color="blue" x={2} y={4} />}
+          {false && <Laser color="red" x={4} y={2} />}
+          {false && <Laser color="blue" x={2} y={4} />}
           <EffectComposer>
             {enableAllEffects ? (
               <DepthOfField focusDistance={0} focalLength={0.02} bokehScale={2} resolutionX={2048} resolutionY={2048} />

@@ -8,6 +8,7 @@
 varying vec2 vMyUv;
 varying vec3 vMyNormal;
 uniform vec4 uEdges;
+uniform int uPlayer;
 // </TacTicOe>
 
 #ifdef PHYSICAL
@@ -91,27 +92,13 @@ varying vec3 vViewPosition;
 #include <clipping_planes_pars_fragment>
 
 // <TacTicOe>
-// float drawArc(vec2 position, vec2 center, float radius, float startAngle, float endAngle, float smoothness) {
-//   vec2 direction = position - center;
-//   float distance = length(direction);
-//   float angle = atan(direction.y, direction.x);
-
-//   if (angle < 0.0)
-//     angle += 2.0 * 3.14159265359; // Adjust angle to be in [0, 2*PI]
-
-//   float inArc = step(startAngle, angle) * step(angle, endAngle);
-//   float edgeDistance = smoothstep(radius - smoothness, radius, distance) - smoothstep(radius, radius + smoothness, distance);
-
-//   return inArc * edgeDistance;
-// }
-
 float drawArc(vec2 position, vec2 center, float radius, float startAngle, float endAngle, float thickness, float smoothness) {
   vec2 direction = position - center;
   float distance = length(direction);
   float angle = atan(direction.y, direction.x);
 
   if (angle < 0.0)
-    angle += 2.0 * 3.14159265359; // Adjust angle to be in [0, 2*PI]
+    angle += 2.0 * PI; // Adjust angle to be in [0, 2*PI]
 
   float inArc = step(startAngle, angle) * step(angle, endAngle);
 
@@ -125,9 +112,8 @@ float drawArc(vec2 position, vec2 center, float radius, float startAngle, float 
   return alpha;
 }
 
-
-vec4 drawField(vec4 diffuseColor) {
-  vec3 strokeColor = diffuseColor.rgb * 0.125;
+vec4 drawCell(vec4 diffuseColor) {
+  vec3 strokeColor = vec3(0.005);
   vec3 sideColor = diffuseColor.rgb * 0.125;
   vec4 newDiffuseColor = diffuseColor;
   vec3 upVector = vec3(0.0, 0.0, 1.0);
@@ -153,17 +139,19 @@ vec4 drawField(vec4 diffuseColor) {
 
     newDiffuseColor.rgb = mix(newDiffuseColor.rgb, strokeColor, 1.0 - edgeBlend);
 
-    vec2 center = vec2(0.5, 0.5);
-    float radius = 0.3;
-    float startAngle = 0.0;
-    float endAngle = 3.14159265359 * 1.5;
-    float thickness = 0.05;
-    float smoothness = 0.01 / 2.0;
+    if (uPlayer == 1 || uPlayer == 2) {
+      vec2 center = vec2(0.5, 0.5);
+      float radius = 0.3;
+      float startAngle = uPlayer == 1 ? PI / 2.0 : PI;
+      float endAngle = uPlayer == 1 ? PI * 1.5 : PI * 2.5;
+      float thickness = 0.05;
+      float smoothness = 0.01 / 2.0;
 
-    float alpha = drawArc(vMyUv, center, radius, startAngle, endAngle, thickness, smoothness);
-    alpha = max(alpha, drawArc(vMyUv, center, radius / 1.5, startAngle, endAngle, thickness, smoothness));
+      float alpha = drawArc(vMyUv, center, radius, startAngle, endAngle, thickness, smoothness);
+      alpha = max(alpha, drawArc(vMyUv, center, radius / 1.5, startAngle, endAngle, thickness, smoothness));
 
-    newDiffuseColor.rgb = mix(newDiffuseColor.rgb, strokeColor, alpha);
+      newDiffuseColor.rgb = mix(newDiffuseColor.rgb, strokeColor, alpha);
+    }
   } else {
     newDiffuseColor.rgb = sideColor;
   }
@@ -175,7 +163,7 @@ vec4 drawField(vec4 diffuseColor) {
 void main() {
 	vec4 diffuseColor = vec4( diffuse, opacity );
   // <TacTicOe>
-  diffuseColor = drawField(diffuseColor);
+  diffuseColor = drawCell(diffuseColor);
   // </TacTicOe>
 	#include <clipping_planes_fragment>
 	ReflectedLight reflectedLight = ReflectedLight( vec3( 0.0 ), vec3( 0.0 ), vec3( 0.0 ), vec3( 0.0 ) );
