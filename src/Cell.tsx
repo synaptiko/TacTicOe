@@ -8,10 +8,10 @@ type CellProps = {
   x: number;
   y: number;
   player?: Player;
-  onClick: (event: ThreeEvent<MouseEvent>, position: Position) => void;
+  onClick: (event: ThreeEvent<MouseEvent>, position: PositionKey, x: number, y: number) => void;
 };
 
-export type Position = `${number}:${number}`;
+export type PositionKey = `${number}:${number}`;
 export type Player = 'x' | 'o';
 
 export function Cell({ x, y, player, onClick }: CellProps) {
@@ -29,7 +29,7 @@ export function Cell({ x, y, player, onClick }: CellProps) {
   }, [x, y]);
 
   return (
-    <mesh ref={meshRef} position={[x - 3, y - 3, -15]} onClick={(event) => onClick(event, `${x}:${y}`)}>
+    <mesh ref={meshRef} position={[x - 3, y - 3, -15]} onClick={(event) => onClick(event, `${x}:${y}`, x, y)}>
       <boxGeometry args={[1, 1, 10]} />
       <CellMaterialWrapper color="#A39F9F" uEdges={uEdges} uPlayer={player === 'x' ? 1 : player === 'o' ? 2 : 0} />
     </mesh>
