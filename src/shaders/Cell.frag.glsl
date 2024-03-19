@@ -93,68 +93,120 @@ varying vec3 vViewPosition;
 #include <clipping_planes_pars_fragment>
 
 // <TacTicOe>
-float drawArc(vec2 position, vec2 center, float radius, float startAngle, float endAngle, float thickness, float smoothness) {
-  vec2 direction = position - center;
-  float distance = length(direction);
-  float angle = atan(direction.y, direction.x);
+// SDFs from https://iquilezles.org/articles/distfunctions2d/
+float sdArc(in vec2 p, in vec2 sc, in float ra, float rb) {
+  p.x = abs(p.x);
 
-  if (angle < 0.0)
-    angle += 2.0 * PI; // Adjust angle to be in [0, 2*PI]
+  return ((sc.y * p.x > sc.x * p.y) ? length(p - sc * ra) : abs(length(p) - ra)) - rb;
+}
 
-  float inArc = step(startAngle, angle) * step(angle, endAngle);
+float sdSegment(in vec2 p, in vec2 a, in vec2 b) {
+    vec2 pa = p - a;
+    vec2 ba = b - a;
+    float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
 
-  // Calculate inner and outer edge of the arc
-  float innerEdge = radius - thickness * 0.5;
-  float outerEdge = radius + thickness * 0.5;
+    return length(pa - ba * h);
+}
+// </TacTicOe>
 
-  // Apply smoothness on both inner and outer edges
-  float alpha = inArc * (smoothstep(innerEdge - smoothness, innerEdge, distance) - smoothstep(outerEdge, outerEdge + smoothness, distance));
+// <TacTicOe>
+vec3 strokeColor = vec3(0.005);
+vec3 upVector = vec3(0.0, 0.0, 1.0);
+float edgeThickness = 0.033;
+float edgeSmoothness = 0.01;
+float symbolThickness = 0.033;
+float symbolSmoothness = 0.01;
 
-  return alpha;
+vec2 rotate(vec2 point, vec2 center, float angle) {
+  float cosTheta = cos(angle);
+  float sinTheta = sin(angle);
+  float x = point.x - center.x;
+  float y = point.y - center.y;
+
+  return vec2(
+    x * cosTheta - y * sinTheta,
+    x * sinTheta + y * cosTheta
+  ) + center;
+}
+
+vec2 flip(vec2 uv) {
+  return vec2(1.0 - uv.x, uv.y);
+}
+
+float drawArc(vec2 position, vec2 center, float radius, float angle, float thickness, float smoothness) {
+  vec2  sc = vec2(sin(angle),cos(angle));
+  float d = sdArc(rotate(position, center, angle) - center, sc, radius, 0.0);
+
+  return smoothstep(thickness * 0.5 + smoothness, thickness * 0.5, d);
+}
+
+float drawLine(vec2 position, vec2 a, vec2 b, float thickness, float smoothness) {
+  float d = sdSegment(position, a, b);
+
+  return smoothstep(thickness * 0.5 + smoothness, thickness * 0.5, d);
+}
+
+vec3 drawOSymbol(vec4 diffuseColor) {
+  vec2 center = vec2(0.5, 0.5);
+  float radius = 0.3;
+  float angle = PI * uPlayerFill;
+  vec2 rotatedUv = rotate(vMyUv, center, PI / 2.0);
+  vec2 flippedUv = flip(rotatedUv);
+
+  float outerCircle = drawArc(rotatedUv, center, radius, angle, symbolThickness, symbolSmoothness);
+  float innerCircle = drawArc(flippedUv, center, radius / 1.5, angle, symbolThickness, symbolSmoothness);
+
+  return mix(diffuseColor.rgb, strokeColor, max(outerCircle, innerCircle));
+}
+
+vec3 drawXSymbol(vec4 diffuseColor) {
+  vec2 center = vec2(0.5, 0.5);
+  float radius = 0.3;
+  vec2 rotatedUv = rotate(vMyUv, center, PI / 2.0);
+
+  float line1 = drawLine(rotatedUv, vec2(center.x - radius, center.y - radius), vec2(center.x + radius, center.y + radius), symbolThickness, symbolSmoothness);
+  float line2 = drawLine(rotatedUv, vec2(center.x - radius, center.y + radius), vec2(center.x + radius, center.y - radius), symbolThickness, symbolSmoothness);
+
+  return mix(diffuseColor.rgb, strokeColor, max(line1, line2));
+}
+
+vec3 drawEdges(vec4 diffuseColor) {
+  float thickness = edgeThickness * 0.5;
+  float smoothness = edgeSmoothness;
+  float blend = 1.0;
+
+  if (uEdges.x == 1.0) {
+    blend *= smoothstep(thickness, thickness + smoothness, vMyUv.x);
+  }
+  if (uEdges.y == 1.0) {
+    blend *= smoothstep(thickness, thickness + smoothness, vMyUv.y);
+  }
+  if (uEdges.z == 1.0) {
+    blend *= smoothstep(thickness, thickness + smoothness, 1.0 - vMyUv.x);
+  }
+  if (uEdges.w == 1.0) {
+    blend *= smoothstep(thickness, thickness + smoothness, 1.0 - vMyUv.y);
+  }
+
+  return mix(diffuseColor.rgb, strokeColor, 1.0 - blend);
 }
 
 vec4 drawCell(vec4 diffuseColor) {
-  vec3 strokeColor = vec3(0.005);
-  vec3 sideColor = diffuseColor.rgb * 0.125;
   vec4 newDiffuseColor = diffuseColor;
-  vec3 upVector = vec3(0.0, 0.0, 1.0);
 
   if (dot(vMyNormal, upVector) > 0.99) {
-    float edgeWidth = 0.03;
-    float edgeTransition = 0.01;
-    float edgeStart = edgeWidth - edgeTransition;
-    float edgeBlend = 1.0;
+    // render edges & player symbols on the top face
+    newDiffuseColor.rgb = drawEdges(newDiffuseColor);
 
-    if (uEdges.x == 1.0) {
-      edgeBlend *= smoothstep(edgeStart, edgeWidth, vMyUv.x);
-    }
-    if (uEdges.y == 1.0) {
-      edgeBlend *= smoothstep(edgeStart, edgeWidth, vMyUv.y);
-    }
-    if (uEdges.z == 1.0) {
-      edgeBlend *= smoothstep(edgeStart, edgeWidth, 1.0 - vMyUv.x);
-    }
-    if (uEdges.w == 1.0) {
-      edgeBlend *= smoothstep(edgeStart, edgeWidth, 1.0 - vMyUv.y);
-    }
-
-    newDiffuseColor.rgb = mix(newDiffuseColor.rgb, strokeColor, 1.0 - edgeBlend);
-
-    if (uPlayer == 1 || uPlayer == 2) {
-      vec2 center = vec2(0.5, 0.5);
-      float radius = 0.3;
-      float startAngle = uPlayer == 1 ? PI / 2.0 : PI;
-      float endAngle = (uPlayer == 1 ? PI * 1.5 : PI * 2.5) * uPlayerFill;
-      float thickness = 0.05;
-      float smoothness = 0.01 / 2.0;
-
-      float alpha = drawArc(vMyUv, center, radius, startAngle, endAngle, thickness, smoothness);
-      alpha = max(alpha, drawArc(vMyUv, center, radius / 1.5, startAngle, endAngle, thickness, smoothness));
-
-      newDiffuseColor.rgb = mix(newDiffuseColor.rgb, strokeColor, alpha);
+    if (uPlayer == 1) {
+      newDiffuseColor.rgb = drawXSymbol(newDiffuseColor);
+      // newDiffuseColor.rgb = drawOSymbol(newDiffuseColor);
+    } else if (uPlayer == 2) {
+      newDiffuseColor.rgb = drawOSymbol(newDiffuseColor);
     }
   } else {
-    newDiffuseColor.rgb = sideColor;
+    // render side faces with a darker color
+    newDiffuseColor.rgb = diffuseColor.rgb * 0.125;
   }
 
   return newDiffuseColor;

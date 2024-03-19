@@ -15,6 +15,7 @@ type CellProps = {
 export type PositionKey = `${number}:${number}`;
 export type Player = 'x' | 'o';
 export const drawingDuration = 0.5; // seconds
+// export const drawingDuration = 5; // seconds
 
 export function Cell({ x, y, player, onClick }: CellProps) {
   const meshRef = useRef<Mesh>(null!);
@@ -43,6 +44,7 @@ export function Cell({ x, y, player, onClick }: CellProps) {
     const tween = gsap.to(materialRef.current, {
       uPlayerFill: 1,
       duration: drawingDuration,
+      ease: 'none',
     });
 
     return () => {
@@ -53,6 +55,7 @@ export function Cell({ x, y, player, onClick }: CellProps) {
   return (
     <mesh ref={meshRef} position={[x - 3, y - 3, -15]} onClick={(event) => onClick(event, `${x}:${y}`, x, y)}>
       <boxGeometry args={[1, 1, 10]} />
+      {/* TODO: suggestion from Engin, add similar "white noise" texture to cells to break the polished look a bit */}
       <CellMaterialWrapper
         ref={materialRef}
         color="#FFF"

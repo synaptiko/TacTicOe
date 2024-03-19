@@ -16,6 +16,9 @@ const highlightDuration = 0.25; // seconds
 const maxIntensity = 20;
 
 export function Symbols({ activePlayer }: SymbolsProps) {
+  {
+    /* TODO: suggestion from Engin, make X/O more plastic by adding some tickness to it; we could emit light only from the front face */
+  }
   const {
     nodes: { x, o },
   } = useGLTF(symbolsUrl);
@@ -57,6 +60,7 @@ export function Symbols({ activePlayer }: SymbolsProps) {
     );
 
     // TODO: add slight pulse animation from base to higher intensity
+    // TODO: or maybe there could be a slight floating animation to make it more interesting?
 
     return () => {
       setTimeout(
