@@ -9,6 +9,7 @@ varying vec2 vMyUv;
 varying vec3 vMyNormal;
 uniform vec4 uEdges;
 uniform int uPlayer;
+uniform float uPlayerFill;
 // </TacTicOe>
 
 #ifdef PHYSICAL
@@ -143,7 +144,7 @@ vec4 drawCell(vec4 diffuseColor) {
       vec2 center = vec2(0.5, 0.5);
       float radius = 0.3;
       float startAngle = uPlayer == 1 ? PI / 2.0 : PI;
-      float endAngle = uPlayer == 1 ? PI * 1.5 : PI * 2.5;
+      float endAngle = (uPlayer == 1 ? PI * 1.5 : PI * 2.5) * uPlayerFill;
       float thickness = 0.05;
       float smoothness = 0.01 / 2.0;
 

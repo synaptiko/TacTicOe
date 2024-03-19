@@ -4,50 +4,73 @@ import vertexShader from './shaders/Cell.vert.glsl?raw';
 import vertexShaderUrl from './shaders/Cell.vert.glsl?url';
 import fragmentShader from './shaders/Cell.frag.glsl?raw';
 import fragmentShaderUrl from './shaders/Cell.frag.glsl?url';
-import { memo, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { forwardRef, memo, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import invariant from 'tiny-invariant';
 
 type CellMaterialWrapperProps = {
   color: string;
   uEdges: Vector4;
   uPlayer: 0 | 1 | 2;
+  uPlayerFill: number;
 };
 
-const CellMaterialDevelopmentWrapper = memo((props: CellMaterialWrapperProps) => {
-  const materialRef = useRef<CellMaterial>(null!);
-  const [shaders, setShaders] = useState<{ vertexShader?: string; fragmentShader?: string }>({});
+const CellMaterialDevelopmentWrapper = memo(
+  forwardRef<CellMaterial, CellMaterialWrapperProps>((props, ref) => {
+    const materialRef = useRef<CellMaterial>(null!);
+    const [shaders, setShaders] = useState<{ vertexShader?: string; fragmentShader?: string }>({});
 
-  useEffect(() => {
-    import.meta.hot?.on('glsl-update', async (data) => {
-      const url = data.url;
+    useEffect(() => {
+      import.meta.hot?.on('glsl-update', async (data) => {
+        const url = data.url;
 
-      invariant(url === vertexShaderUrl || url === fragmentShaderUrl, 'Invalid shader URL');
+        invariant(url === vertexShaderUrl || url === fragmentShaderUrl, 'Invalid shader URL');
 
-      const content = await (await fetch(url)).text();
+        const content = await (await fetch(url)).text();
 
-      if (url === vertexShaderUrl) {
-        setShaders((shaders) => ({
-          ...shaders,
-          vertexShader: content,
-        }));
-      } else if (url === fragmentShaderUrl) {
-        setShaders((shaders) => ({
-          ...shaders,
-          fragmentShader: content,
-        }));
-      }
-    });
-  }, []);
+        if (url === vertexShaderUrl) {
+          setShaders((shaders) => ({
+            ...shaders,
+            vertexShader: content,
+          }));
+        } else if (url === fragmentShaderUrl) {
+          setShaders((shaders) => ({
+            ...shaders,
+            fragmentShader: content,
+          }));
+        }
+      });
+    }, []);
 
-  useLayoutEffect(() => {
-    materialRef.current.needsUpdate = true;
-  }, [shaders]);
+    useLayoutEffect(() => {
+      materialRef.current.needsUpdate = true;
+    }, [shaders]);
 
-  return <cellMaterial ref={materialRef} {...props} {...shaders} />;
-});
+    return (
+      <cellMaterial
+        ref={(material) => {
+          materialRef.current = material!;
 
-export const CellMaterialWrapper = memo((props: CellMaterialWrapperProps) =>
-  import.meta.env.MODE === 'production' ? <cellMaterial {...props} /> : <CellMaterialDevelopmentWrapper {...props} />
+          if (typeof ref === 'function') {
+            ref(material!);
+          } else if (ref) {
+            ref.current = material!;
+          }
+        }}
+        {...props}
+        {...shaders}
+      />
+    );
+  })
+);
+
+export const CellMaterialWrapper = memo(
+  forwardRef<CellMaterial, CellMaterialWrapperProps>((props, ref) =>
+    import.meta.env.MODE === 'production' ? (
+      <cellMaterial {...props} ref={ref} />
+    ) : (
+      <CellMaterialDevelopmentWrapper ref={ref} {...props} />
+    )
+  )
 );
 
 export class CellMaterial extends MeshStandardMaterial {
@@ -58,6 +81,10 @@ export class CellMaterial extends MeshStandardMaterial {
 
   set uPlayer(value: 0 | 1 | 2) {
     setUniform(this.#uniforms, 'uPlayer', value);
+  }
+
+  set uPlayerFill(value: number) {
+    setUniform(this.#uniforms, 'uPlayerFill', value);
   }
 
   set uEdges(value: Vector4) {

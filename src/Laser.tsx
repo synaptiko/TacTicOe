@@ -11,14 +11,22 @@ export function Laser({ x, y, color }: LaserProps) {
   const meshRef = useRef<Mesh>(null!);
 
   useEffect(() => {
-    gsap.to(meshRef.current.position, {
+    const tween = gsap.to(meshRef.current.position, {
       x: x - 3,
       y: y - 3,
       z: 2,
       duration: 0.125,
-      // delay: 1.25,
       ease: 'power4.inOut',
     });
+
+    const timeoutId = setTimeout(() => {
+      tween.reverse();
+    }, 500);
+
+    return () => {
+      tween.kill();
+      clearTimeout(timeoutId);
+    };
   }, [x, y]);
 
   return (
