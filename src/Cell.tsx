@@ -11,8 +11,10 @@ type CellProps = {
   onClick: (event: ThreeEvent<MouseEvent>, position: PositionKey, x: number, y: number) => void;
 };
 
+// TODO: separate these exports to different file?
 export type PositionKey = `${number}:${number}`;
 export type Player = 'x' | 'o';
+export const drawingDuration = 0.5; // seconds
 
 export function Cell({ x, y, player, onClick }: CellProps) {
   const meshRef = useRef<Mesh>(null!);
@@ -40,7 +42,7 @@ export function Cell({ x, y, player, onClick }: CellProps) {
 
     const tween = gsap.to(materialRef.current, {
       uPlayerFill: 1,
-      duration: 0.5,
+      duration: drawingDuration,
     });
 
     return () => {
@@ -53,7 +55,7 @@ export function Cell({ x, y, player, onClick }: CellProps) {
       <boxGeometry args={[1, 1, 10]} />
       <CellMaterialWrapper
         ref={materialRef}
-        color="#A39F9F"
+        color="#FFF"
         uEdges={uEdges}
         uPlayer={player === 'x' ? 1 : player === 'o' ? 2 : 0}
         uPlayerFill={0}
