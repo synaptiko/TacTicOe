@@ -251,11 +251,11 @@ vec3 drawOSymbol(vec4 diffuseColor) {
   }
 
   float angle = PI * uPlayerFill;
-  vec2 rotatedUv = rotate(vMyUv, center, PI / 2.0);
-  vec2 flippedUv = flipX(rotatedUv);
+  vec2 outerCircleUv = rotate(vMyUv, center, PI / 2.0);
+  vec2 innerCircleUv = rotate(vMyUv, center, PI / 2.0 + PI);
 
-  float outerCircle = drawArc(rotatedUv, center, outerRadius, angle, symbolThickness, symbolSmoothness);
-  float innerCircle = drawArc(flippedUv, center, innerRadius, angle, symbolThickness, symbolSmoothness);
+  float outerCircle = drawArc(outerCircleUv, center, outerRadius, angle, symbolThickness, symbolSmoothness);
+  float innerCircle = drawArc(innerCircleUv, center, innerRadius, angle, symbolThickness, symbolSmoothness);
 
   return mix(diffuseColor.rgb, strokeColor, max(outerCircle, innerCircle));
 }

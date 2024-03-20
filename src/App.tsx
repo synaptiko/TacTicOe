@@ -3,10 +3,9 @@ import { times } from 'lodash';
 import { Suspense, useState } from 'react';
 import { Bloom, ChromaticAberration, DepthOfField, EffectComposer, Noise, Vignette } from '@react-three/postprocessing';
 import { OrbitControls } from '@react-three/drei';
-import './CellMaterial';
-import { Laser } from './Laser';
 import { Cell, Player, PositionKey } from './Cell';
 import { Symbols } from './Symbols';
+import { Lasers } from './Lasers';
 
 const isDevelopmentMode = import.meta.env.MODE === 'development';
 const enableAllEffects = !isDevelopmentMode;
@@ -63,8 +62,9 @@ function App() {
               <Cell key={`${x}:${y}`} x={x} y={y} player={playerPositions.get(`${x}:${y}`)} onClick={handleClick} />
             ))
           )}
-          {lastPosition && lastPosition[0] === 'x' && <Laser color="red" x={lastPosition[1]} y={lastPosition[2]} />}
-          {lastPosition && lastPosition[0] === 'o' && <Laser color="blue" x={lastPosition[1]} y={lastPosition[2]} />}
+          {lastPosition && (
+            <Lasers color={lastPosition[0] === 'x' ? 'red' : 'blue'} x={lastPosition[1]} y={lastPosition[2]} />
+          )}
           <EffectComposer>
             {enableAllEffects ? (
               <DepthOfField focusDistance={0} focalLength={0.02} bokehScale={2} resolutionX={2048} resolutionY={2048} />

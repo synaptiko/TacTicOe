@@ -52,7 +52,7 @@ export function Cell({ x, y, player, onClick }: CellProps) {
   }, [player]);
 
   return (
-    <mesh ref={meshRef} position={[x - 3, y - 3, -15]} onClick={(event) => onClick(event, `${x}:${y}`, x, y)}>
+    <mesh ref={meshRef} position={[x - 3, y - 3, -16]} onClick={(event) => onClick(event, `${x}:${y}`, x, y)}>
       <boxGeometry args={[1, 1, 10]} />
       {/* TODO: suggestion from Engin, add similar "white noise" texture to cells to break the polished look a bit */}
       <CellMaterialWrapper
