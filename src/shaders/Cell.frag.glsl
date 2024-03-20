@@ -114,8 +114,11 @@ vec3 strokeColor = vec3(0.005);
 vec3 upVector = vec3(0.0, 0.0, 1.0);
 float edgeThickness = 0.033;
 float edgeSmoothness = 0.01;
-float symbolThickness = 0.033;
+float symbolThickness = 0.033 * 1.75;
 float symbolSmoothness = 0.01;
+float symbolGap = 0.1 * 1.5;
+float symbolRadius = 0.33;
+float xSymbolScale = 1.125;
 
 vec2 rotate(vec2 point, vec2 center, float angle) {
   float cosTheta = cos(angle);
@@ -129,8 +132,12 @@ vec2 rotate(vec2 point, vec2 center, float angle) {
   ) + center;
 }
 
-vec2 flip(vec2 uv) {
+vec2 flipX(vec2 uv) {
   return vec2(1.0 - uv.x, uv.y);
+}
+
+vec2 flipXY(vec2 uv) {
+  return vec2(1.0 - uv.x, 1.0 - uv.y);
 }
 
 float drawArc(vec2 position, vec2 center, float radius, float angle, float thickness, float smoothness) {
@@ -138,6 +145,12 @@ float drawArc(vec2 position, vec2 center, float radius, float angle, float thick
   float d = sdArc(rotate(position, center, angle) - center, sc, radius, thickness * 0.5);
 
   return smoothstep(smoothness, 0.0, d);
+}
+
+float drawCircle(vec2 position, vec2 center, float radius, float thickness, float smoothness) {
+  float d = abs(length(position - center) - radius);
+
+  return smoothstep(thickness * 0.5 + smoothness, thickness * 0.5, d);
 }
 
 float drawLine(vec2 position, vec2 a, vec2 b, float thickness, float smoothness) {
@@ -149,7 +162,7 @@ float drawLine(vec2 position, vec2 a, vec2 b, float thickness, float smoothness)
 float drawHalfCrossSegment(vec2 position, vec2 a, vec2 b, float length, float thickness, float smoothness) {
   if (length >= 1.0) {
     return drawLine(position, a, b, thickness, smoothness);
-  } else if (length < 0.0) {
+  } else if (length <= 0.0) {
     return 0.0;
   }
 
@@ -163,32 +176,110 @@ float drawHalfCrossSegment(vec2 position, vec2 a, vec2 b, float length, float th
 // w = width of central square ("thickness of the leg")
 // h = height of leg from central square
 float drawHalfCross(vec2 position, float w, float h, vec2 center, float thickness, float smoothness) {
-  // TODO: implement
-  return 0.0;
+  float wh = w * 0.5;
+  vec2 points[7];
+
+  points[0] = vec2(-wh, wh + h);
+  points[1] = vec2(wh, wh + h);
+  points[2] = vec2(wh, wh);
+  points[3] = vec2(wh + h, wh);
+  points[4] = vec2(wh + h, -wh);
+  points[5] = vec2(wh, -wh);
+  points[6] = vec2(wh, -wh - h);
+
+  float totalLength = 0.0;
+
+  for (int i = 1; i < 7; i++) {
+    totalLength += length(points[i] - points[i - 1]);
+  }
+
+  float scaledFill = uPlayerFill * totalLength;
+  float cumulativeLength = 0.0;
+  float alpha = 0.0;
+
+  for (int i = 1; i < 7; i++) {
+    float segmentLength = length(points[i] - points[i - 1]);
+
+    if (scaledFill <= cumulativeLength) {
+      break;
+    }
+
+    float visibleFraction = min((scaledFill - cumulativeLength) / segmentLength, 1.0);
+    vec2 start = center + points[i - 1];
+    vec2 end = center + points[i];
+    float segment = drawHalfCrossSegment(position, start, end, visibleFraction, thickness, smoothness);
+    alpha = max(alpha, segment);
+
+    cumulativeLength += segmentLength;
+  }
+
+  return alpha;
+}
+
+float drawQuarterCross(vec2 position, float w, float h, vec2 center, float thickness, float smoothness) {
+  float wh = w * 0.5;
+  float line1 = drawLine(position, center + vec2(wh, wh), center + vec2(wh, wh + h), thickness, smoothness);
+  float line2 = drawLine(position, center + vec2(wh, wh + h), center + vec2(-wh, wh + h), thickness, smoothness);
+  float line3 = drawLine(position, center + vec2(-wh, wh + h), center + vec2(-wh, wh), thickness, smoothness);
+
+  return max(max(line1, line2), line3);
+}
+
+float drawCross(vec2 position, float w, float h, vec2 center, float thickness, float smoothness) {
+  float quarter1 = drawQuarterCross(position, w, h, center, thickness, smoothness);
+  float quarter2 = drawQuarterCross(rotate(position, center, PI / 2.0), w, h, center, thickness, smoothness);
+  float quarter3 = drawQuarterCross(rotate(position, center, PI), w, h, center, thickness, smoothness);
+  float quarter4 = drawQuarterCross(rotate(position, center, 3.0 * PI / 2.0), w, h, center, thickness, smoothness);
+
+  return max(quarter1, max(quarter2, max(quarter3, quarter4)));
 }
 
 vec3 drawOSymbol(vec4 diffuseColor) {
+  if (uPlayerFill == 0.0) {
+    return diffuseColor.rgb;
+  }
+
   vec2 center = vec2(0.5, 0.5);
-  float radius = 0.3;
+  float outerRadius = symbolRadius;
+  float innerRadius = outerRadius - symbolGap;
+
+  if (uPlayerFill == 1.0) {
+    float outerCircle = drawCircle(vMyUv, center, outerRadius, symbolThickness, symbolSmoothness);
+    float innerCircle = drawCircle(vMyUv, center, innerRadius, symbolThickness, symbolSmoothness);
+
+    return mix(diffuseColor.rgb, strokeColor, max(outerCircle, innerCircle));
+  }
+
   float angle = PI * uPlayerFill;
   vec2 rotatedUv = rotate(vMyUv, center, PI / 2.0);
-  vec2 flippedUv = flip(rotatedUv);
+  vec2 flippedUv = flipX(rotatedUv);
 
-  float outerCircle = drawArc(rotatedUv, center, radius, angle, symbolThickness, symbolSmoothness);
-  float innerCircle = drawArc(flippedUv, center, radius / 1.5, angle, symbolThickness, symbolSmoothness);
+  float outerCircle = drawArc(rotatedUv, center, outerRadius, angle, symbolThickness, symbolSmoothness);
+  float innerCircle = drawArc(flippedUv, center, innerRadius, angle, symbolThickness, symbolSmoothness);
 
   return mix(diffuseColor.rgb, strokeColor, max(outerCircle, innerCircle));
 }
 
 vec3 drawXSymbol(vec4 diffuseColor) {
+  if (uPlayerFill == 0.0) {
+    return diffuseColor.rgb;
+  }
+
   vec2 center = vec2(0.5, 0.5);
-  float radius = 0.3;
-  vec2 rotatedUv = rotate(vMyUv, center, PI / 2.0);
+  float w = symbolGap;
+  float h = (symbolRadius - symbolGap) * 1.41 * xSymbolScale;
+  vec2 rotatedUv = rotate(vMyUv, center, PI / 4.0);
 
-  float line1 = drawHalfCrossSegment(rotatedUv, vec2(center.x - radius, center.y - radius), vec2(center.x + radius, center.y + radius), uPlayerFill, symbolThickness, symbolSmoothness);
-  float line2 = drawHalfCrossSegment(rotatedUv, vec2(center.x - radius, center.y + radius), vec2(center.x + radius, center.y - radius), uPlayerFill, symbolThickness, symbolSmoothness);
+  if (uPlayerFill == 1.0) {
+    float cross = drawCross(rotatedUv, w, h, center, symbolThickness, symbolSmoothness);
 
-  return mix(diffuseColor.rgb, strokeColor, max(line1, line2));
+    return mix(diffuseColor.rgb, strokeColor, cross);
+  }
+
+  float half1 = drawHalfCross(rotatedUv, w, h, center, symbolThickness, symbolSmoothness);
+  float half2 = drawHalfCross(flipXY(rotatedUv), w, h, center, symbolThickness, symbolSmoothness);
+
+  return mix(diffuseColor.rgb, strokeColor, max(half1, half2));
 }
 
 vec3 drawEdges(vec4 diffuseColor) {

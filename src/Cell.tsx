@@ -15,7 +15,6 @@ type CellProps = {
 export type PositionKey = `${number}:${number}`;
 export type Player = 'x' | 'o';
 export const drawingDuration = 0.5; // seconds
-// export const drawingDuration = 5; // seconds
 
 export function Cell({ x, y, player, onClick }: CellProps) {
   const meshRef = useRef<Mesh>(null!);
