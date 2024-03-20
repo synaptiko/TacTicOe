@@ -35,7 +35,7 @@ export function Symbols({ activePlayer }: SymbolsProps) {
     const tween = gsap.to(groupRef.current.position, {
       x: 0,
       y: 0,
-      z: 0,
+      z: -1.33,
       duration: introDuration,
       ease: 'power4.inOut',
     });
@@ -76,11 +76,11 @@ export function Symbols({ activePlayer }: SymbolsProps) {
   }, [activePlayer]);
 
   return (
-    <group ref={groupRef} dispose={null} position={[0, 0, 5]}>
-      <mesh geometry={xGeometry} rotation={[Math.PI / 2, -Math.PI, 0]} scale={15} position={[-1.5, -10, 0.25]}>
+    <group ref={groupRef} dispose={null} position={[0, 0, 4]}>
+      <mesh geometry={xGeometry} rotation={[Math.PI / 2, -Math.PI, 0]} scale={16.5} position={[-2.8, -10, 0]}>
         <meshStandardMaterial ref={xRef} color="#555" emissive="#E72929" emissiveIntensity={0} />
       </mesh>
-      <mesh geometry={oGeometry} rotation={[0, Math.PI / 2, 0]} scale={15} position={[-10, -1.5, 0.25]}>
+      <mesh geometry={oGeometry} rotation={[0, Math.PI / 2, 0]} scale={16.5} position={[-10, -2.8, 0]}>
         <meshStandardMaterial ref={oRef} color="#555" emissive="#299CE7" emissiveIntensity={0} />
       </mesh>
     </group>

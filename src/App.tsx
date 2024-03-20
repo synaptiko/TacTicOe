@@ -13,6 +13,26 @@ const enableAllEffects = !isDevelopmentMode;
 
 const background = '#7b627c';
 
+function toggleFullscreen() {
+  if (!document.fullscreenElement) {
+    // If the document is not in fullscreen mode, request fullscreen on the document body
+    document.documentElement.requestFullscreen().catch((err) => {
+      console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+    });
+  } else {
+    // If the document is already in fullscreen, exit fullscreen mode
+    if (document.exitFullscreen) {
+      document.exitFullscreen();
+    }
+  }
+}
+
+document.addEventListener('keydown', function (event) {
+  if (event.key === 'f') {
+    toggleFullscreen();
+  }
+});
+
 function App() {
   const [playerPositions, setPlayerPositions] = useState(new Map<PositionKey, Player>());
   const [isX, setIsX] = useState(true);
@@ -30,7 +50,7 @@ function App() {
 
   return (
     <div id="canvas-container">
-      <Canvas camera={{ fov: 25, near: 0.1, far: 1000, up: [0, 0, 1], position: [10, 10, 5] }}>
+      <Canvas camera={{ fov: 30, near: 0.1, far: 1000, up: [0, 0, 1], position: [8.5, 8.5, 7.5] }}>
         <Suspense fallback={null}>
           {/* TODO: improve fog, make it denser at the ground level (see https://github.com/mrdoob/three.js/blob/master/examples/webgpu_custom_fog.html) */}
           <fogExp2 attach="fog" color={background} density={0.06} />
