@@ -135,15 +135,36 @@ vec2 flip(vec2 uv) {
 
 float drawArc(vec2 position, vec2 center, float radius, float angle, float thickness, float smoothness) {
   vec2  sc = vec2(sin(angle),cos(angle));
-  float d = sdArc(rotate(position, center, angle) - center, sc, radius, 0.0);
+  float d = sdArc(rotate(position, center, angle) - center, sc, radius, thickness * 0.5);
 
-  return smoothstep(thickness * 0.5 + smoothness, thickness * 0.5, d);
+  return smoothstep(smoothness, 0.0, d);
 }
 
 float drawLine(vec2 position, vec2 a, vec2 b, float thickness, float smoothness) {
   float d = sdSegment(position, a, b);
 
   return smoothstep(thickness * 0.5 + smoothness, thickness * 0.5, d);
+}
+
+float drawHalfCrossSegment(vec2 position, vec2 a, vec2 b, float length, float thickness, float smoothness) {
+  if (length >= 1.0) {
+    return drawLine(position, a, b, thickness, smoothness);
+  } else if (length < 0.0) {
+    return 0.0;
+  }
+
+  // calculate b based on length as relative distance from a; length = <0, 1>
+  vec2 ab = b - a;
+  b = a + ab * length;
+
+  return drawLine(position, a, b, thickness, smoothness);
+}
+
+// w = width of central square ("thickness of the leg")
+// h = height of leg from central square
+float drawHalfCross(vec2 position, float w, float h, vec2 center, float thickness, float smoothness) {
+  // TODO: implement
+  return 0.0;
 }
 
 vec3 drawOSymbol(vec4 diffuseColor) {
@@ -164,8 +185,8 @@ vec3 drawXSymbol(vec4 diffuseColor) {
   float radius = 0.3;
   vec2 rotatedUv = rotate(vMyUv, center, PI / 2.0);
 
-  float line1 = drawLine(rotatedUv, vec2(center.x - radius, center.y - radius), vec2(center.x + radius, center.y + radius), symbolThickness, symbolSmoothness);
-  float line2 = drawLine(rotatedUv, vec2(center.x - radius, center.y + radius), vec2(center.x + radius, center.y - radius), symbolThickness, symbolSmoothness);
+  float line1 = drawHalfCrossSegment(rotatedUv, vec2(center.x - radius, center.y - radius), vec2(center.x + radius, center.y + radius), uPlayerFill, symbolThickness, symbolSmoothness);
+  float line2 = drawHalfCrossSegment(rotatedUv, vec2(center.x - radius, center.y + radius), vec2(center.x + radius, center.y - radius), uPlayerFill, symbolThickness, symbolSmoothness);
 
   return mix(diffuseColor.rgb, strokeColor, max(line1, line2));
 }
