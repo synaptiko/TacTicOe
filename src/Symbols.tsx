@@ -16,17 +16,20 @@ const highlightDuration = 0.25; // seconds
 const maxIntensity = 20;
 
 export function Symbols({ activePlayer }: SymbolsProps) {
-  {
-    /* TODO: suggestion from Engin, make X/O more plastic by adding some tickness to it; we could emit light only from the front face */
-  }
   const {
-    nodes: { x, o },
+    nodes: { x, o, xExtruded, oExtruded },
   } = useGLTF(symbolsUrl);
   const xGeometry = 'geometry' in x && x.geometry instanceof BufferGeometry ? x.geometry : undefined;
   const oGeometry = 'geometry' in o && o.geometry instanceof BufferGeometry ? o.geometry : undefined;
+  const xExtrudedGeometry =
+    'geometry' in xExtruded && xExtruded.geometry instanceof BufferGeometry ? xExtruded.geometry : undefined;
+  const oExtrudedGeometry =
+    'geometry' in oExtruded && oExtruded.geometry instanceof BufferGeometry ? oExtruded.geometry : undefined;
   const groupRef = useRef<Group>(null!);
   const xRef = useRef<MeshStandardMaterial>(null!);
   const oRef = useRef<MeshStandardMaterial>(null!);
+  const xExtrudedRef = useRef<MeshStandardMaterial>(null!);
+  const oExtrudedRef = useRef<MeshStandardMaterial>(null!);
   const activePlayerRef = useRef(activePlayer);
 
   useMemo(() => (activePlayerRef.current = activePlayer), [activePlayer]);
@@ -47,7 +50,7 @@ export function Symbols({ activePlayer }: SymbolsProps) {
 
   useEffect(() => {
     const tween = gsap.fromTo(
-      activePlayer === 'x' ? xRef.current : oRef.current,
+      activePlayer === 'x' ? [xRef.current, xExtrudedRef.current] : [oRef.current, oExtrudedRef.current],
       {
         emissiveIntensity: 0,
       },
@@ -82,6 +85,12 @@ export function Symbols({ activePlayer }: SymbolsProps) {
       </mesh>
       <mesh geometry={oGeometry} rotation={[0, Math.PI / 2, 0]} scale={16.5} position={[-10, -2.8, 0]}>
         <meshStandardMaterial ref={oRef} color="#555" emissive="#299CE7" emissiveIntensity={0} />
+      </mesh>
+      <mesh geometry={xExtrudedGeometry} rotation={[Math.PI / 2, -Math.PI, 0]} scale={16.5} position={[-2.8, -10, 0]}>
+        <meshStandardMaterial ref={xExtrudedRef} color="#000" emissive="#731414" emissiveIntensity={0} />
+      </mesh>
+      <mesh geometry={oExtrudedGeometry} rotation={[0, Math.PI / 2, 0]} scale={16.5} position={[-10, -2.8, 0]}>
+        <meshStandardMaterial ref={oExtrudedRef} color="#000" emissive="#144E73" emissiveIntensity={0} />
       </mesh>
     </group>
   );
