@@ -36,7 +36,7 @@ document.addEventListener('keydown', function (event) {
 function App() {
   const [playerPositions, setPlayerPositions] = useState(new Map<PositionKey, Player>());
   const [isX, setIsX] = useState(true);
-  const [lastPosition, setLastPosition] = useState<[Player, x: number, y: number] | null>(null);
+  const [lastPosition, setLastPosition] = useState<[player: Player, x: number, y: number] | null>(null);
 
   function handleClick(event: ThreeEvent<MouseEvent>, position: PositionKey, x: number, y: number) {
     event.stopPropagation();
@@ -63,9 +63,7 @@ function App() {
               <Cell key={`${x}:${y}`} x={x} y={y} player={playerPositions.get(`${x}:${y}`)} onClick={handleClick} />
             ))
           )}
-          {lastPosition && (
-            <Lasers color={lastPosition[0] === 'x' ? 'red' : 'blue'} x={lastPosition[1]} y={lastPosition[2]} />
-          )}
+          {lastPosition && <Lasers player={lastPosition[0]} x={lastPosition[1]} y={lastPosition[2]} />}
           <EffectComposer>
             {enableAllEffects ? (
               <DepthOfField focusDistance={0} focalLength={0.02} bokehScale={2} resolutionX={2048} resolutionY={2048} />
