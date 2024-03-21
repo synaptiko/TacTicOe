@@ -1,5 +1,5 @@
 import { MaterialNode, extend } from '@react-three/fiber';
-import { MeshStandardMaterial, Vector4, WebGLProgramParametersWithUniforms } from 'three';
+import { Color, MeshStandardMaterial, Vector4, WebGLProgramParametersWithUniforms } from 'three';
 import vertexShader from './shaders/Cell.vert.glsl?raw';
 import vertexShaderUrl from './shaders/Cell.vert.glsl?url';
 import fragmentShader from './shaders/Cell.frag.glsl?raw';
@@ -12,6 +12,14 @@ type CellMaterialWrapperProps = {
   uEdges: Vector4;
   uPlayer: 0 | 1 | 2;
   uPlayerFill: number;
+  uStrokeColor: Color;
+  uEdgeThickness: number;
+  uEdgeSmoothness: number;
+  uSymbolThickness: number;
+  uSymbolSmoothness: number;
+  uSymbolGap: number;
+  uSymbolRadius: number;
+  uXSymbolScale: number;
 };
 
 const CellMaterialDevelopmentWrapper = memo(
@@ -89,6 +97,38 @@ export class CellMaterial extends MeshStandardMaterial {
 
   set uEdges(value: Vector4) {
     setUniform(this.#uniforms, 'uEdges', value);
+  }
+
+  set uStrokeColor(value: Color) {
+    setUniform(this.#uniforms, 'uStrokeColor', value);
+  }
+
+  set uEdgeThickness(value: number) {
+    setUniform(this.#uniforms, 'uEdgeThickness', value);
+  }
+
+  set uEdgeSmoothness(value: number) {
+    setUniform(this.#uniforms, 'uEdgeSmoothness', value);
+  }
+
+  set uSymbolThickness(value: number) {
+    setUniform(this.#uniforms, 'uSymbolThickness', value);
+  }
+
+  set uSymbolSmoothness(value: number) {
+    setUniform(this.#uniforms, 'uSymbolSmoothness', value);
+  }
+
+  set uSymbolGap(value: number) {
+    setUniform(this.#uniforms, 'uSymbolGap', value);
+  }
+
+  set uSymbolRadius(value: number) {
+    setUniform(this.#uniforms, 'uSymbolRadius', value);
+  }
+
+  set uXSymbolScale(value: number) {
+    setUniform(this.#uniforms, 'uXSymbolScale', value);
   }
 
   set vertexShader(value: string | undefined) {

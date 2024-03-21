@@ -10,6 +10,14 @@ varying vec3 vMyNormal;
 uniform vec4 uEdges;
 uniform int uPlayer;
 uniform float uPlayerFill;
+uniform vec3 uStrokeColor;
+uniform float uEdgeThickness;
+uniform float uEdgeSmoothness;
+uniform float uSymbolThickness;
+uniform float uSymbolSmoothness;
+uniform float uSymbolGap;
+uniform float uSymbolRadius;
+uniform float uXSymbolScale;
 // </TacTicOe>
 
 #ifdef PHYSICAL
@@ -110,15 +118,7 @@ float sdSegment(in vec2 p, in vec2 a, in vec2 b) {
 // </TacTicOe>
 
 // <TacTicOe>
-vec3 strokeColor = vec3(0.005);
 vec3 upVector = vec3(0.0, 0.0, 1.0);
-float edgeThickness = 0.033;
-float edgeSmoothness = 0.01;
-float symbolThickness = 0.033 * 1.75;
-float symbolSmoothness = 0.01;
-float symbolGap = 0.1 * 1.5;
-float symbolRadius = 0.33;
-float xSymbolScale = 1.125;
 
 vec2 rotate(vec2 point, vec2 center, float angle) {
   float cosTheta = cos(angle);
@@ -240,24 +240,24 @@ vec3 drawOSymbol(vec4 diffuseColor) {
   }
 
   vec2 center = vec2(0.5, 0.5);
-  float outerRadius = symbolRadius;
-  float innerRadius = outerRadius - symbolGap;
+  float outerRadius = uSymbolRadius;
+  float innerRadius = outerRadius - uSymbolGap;
 
   if (uPlayerFill == 1.0) {
-    float outerCircle = drawCircle(vMyUv, center, outerRadius, symbolThickness, symbolSmoothness);
-    float innerCircle = drawCircle(vMyUv, center, innerRadius, symbolThickness, symbolSmoothness);
+    float outerCircle = drawCircle(vMyUv, center, outerRadius, uSymbolThickness, uSymbolSmoothness);
+    float innerCircle = drawCircle(vMyUv, center, innerRadius, uSymbolThickness, uSymbolSmoothness);
 
-    return mix(diffuseColor.rgb, strokeColor, max(outerCircle, innerCircle));
+    return mix(diffuseColor.rgb, uStrokeColor, max(outerCircle, innerCircle));
   }
 
   float angle = PI * uPlayerFill;
   vec2 outerCircleUv = rotate(vMyUv, center, PI / 2.0);
   vec2 innerCircleUv = rotate(vMyUv, center, PI / 2.0 + PI);
 
-  float outerCircle = drawArc(outerCircleUv, center, outerRadius, angle, symbolThickness, symbolSmoothness);
-  float innerCircle = drawArc(innerCircleUv, center, innerRadius, angle, symbolThickness, symbolSmoothness);
+  float outerCircle = drawArc(outerCircleUv, center, outerRadius, angle, uSymbolThickness, uSymbolSmoothness);
+  float innerCircle = drawArc(innerCircleUv, center, innerRadius, angle, uSymbolThickness, uSymbolSmoothness);
 
-  return mix(diffuseColor.rgb, strokeColor, max(outerCircle, innerCircle));
+  return mix(diffuseColor.rgb, uStrokeColor, max(outerCircle, innerCircle));
 }
 
 vec3 drawXSymbol(vec4 diffuseColor) {
@@ -266,25 +266,25 @@ vec3 drawXSymbol(vec4 diffuseColor) {
   }
 
   vec2 center = vec2(0.5, 0.5);
-  float w = symbolGap;
-  float h = (symbolRadius - symbolGap) * 1.41 * xSymbolScale;
+  float w = uSymbolGap;
+  float h = (uSymbolRadius - uSymbolGap) * uXSymbolScale;
   vec2 rotatedUv = rotate(vMyUv, center, PI / 4.0);
 
   if (uPlayerFill == 1.0) {
-    float cross = drawCross(rotatedUv, w, h, center, symbolThickness, symbolSmoothness);
+    float cross = drawCross(rotatedUv, w, h, center, uSymbolThickness, uSymbolSmoothness);
 
-    return mix(diffuseColor.rgb, strokeColor, cross);
+    return mix(diffuseColor.rgb, uStrokeColor, cross);
   }
 
-  float half1 = drawHalfCross(rotatedUv, w, h, center, symbolThickness, symbolSmoothness);
-  float half2 = drawHalfCross(flipXY(rotatedUv), w, h, center, symbolThickness, symbolSmoothness);
+  float half1 = drawHalfCross(rotatedUv, w, h, center, uSymbolThickness, uSymbolSmoothness);
+  float half2 = drawHalfCross(flipXY(rotatedUv), w, h, center, uSymbolThickness, uSymbolSmoothness);
 
-  return mix(diffuseColor.rgb, strokeColor, max(half1, half2));
+  return mix(diffuseColor.rgb, uStrokeColor, max(half1, half2));
 }
 
 vec3 drawEdges(vec4 diffuseColor) {
-  float thickness = edgeThickness * 0.5;
-  float smoothness = edgeSmoothness;
+  float thickness = uEdgeThickness * 0.5;
+  float smoothness = uEdgeSmoothness;
   float blend = 1.0;
 
   if (uEdges.x == 1.0) {
@@ -300,7 +300,7 @@ vec3 drawEdges(vec4 diffuseColor) {
     blend *= smoothstep(thickness, thickness + smoothness, 1.0 - vMyUv.y);
   }
 
-  return mix(diffuseColor.rgb, strokeColor, 1.0 - blend);
+  return mix(diffuseColor.rgb, uStrokeColor, 1.0 - blend);
 }
 
 vec4 drawCell(vec4 diffuseColor) {

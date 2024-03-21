@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Laser } from './Laser';
 import { Group, Object3D } from 'three';
 import gsap from 'gsap';
-import { drawingDuration } from './Cell';
+import { drawingDuration, symbolGap, symbolRadius } from './consts';
 
 type LasersProps = {
   x: number;
@@ -29,8 +29,11 @@ export function Lasers({ x, y, color }: LasersProps) {
   const laser2Ref = useRef<Group>(null!);
 
   useEffect(() => {
-    const laser1Rotation = new LaserRotation(laser1Ref.current, 0.33);
-    const laser2Rotation = new LaserRotation(laser2Ref.current, 0.33 - 0.1 * 1.5, Math.PI);
+    const laser1Rotation = new LaserRotation(laser1Ref.current, symbolRadius);
+    const laser2Rotation = new LaserRotation(laser2Ref.current, symbolRadius - symbolGap, Math.PI);
+
+    laser1Ref.current.visible = true;
+    laser2Ref.current.visible = true;
 
     const tween = gsap.fromTo(
       [laser1Rotation, laser2Rotation],
@@ -42,6 +45,10 @@ export function Lasers({ x, y, color }: LasersProps) {
         runBackwards: true,
         duration: drawingDuration,
         ease: 'none',
+        onComplete: () => {
+          laser1Ref.current.visible = false;
+          laser2Ref.current.visible = false;
+        },
       }
     );
 
@@ -52,10 +59,10 @@ export function Lasers({ x, y, color }: LasersProps) {
 
   return (
     <>
-      <group ref={laser1Ref}>
+      <group ref={laser1Ref} visible={false}>
         <Laser x={x} y={y} color={color} />
       </group>
-      <group ref={laser2Ref}>
+      <group ref={laser2Ref} visible={false}>
         <Laser x={x} y={y} color={color} />
       </group>
     </>

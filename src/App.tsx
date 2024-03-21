@@ -3,7 +3,8 @@ import { times } from 'lodash';
 import { Suspense, useState } from 'react';
 import { Bloom, ChromaticAberration, DepthOfField, EffectComposer, Noise, Vignette } from '@react-three/postprocessing';
 import { OrbitControls } from '@react-three/drei';
-import { Cell, Player, PositionKey } from './Cell';
+import { Cell } from './Cell';
+import { Player, PositionKey } from './types';
 import { Symbols } from './Symbols';
 import { Lasers } from './Lasers';
 

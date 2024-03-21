@@ -3,7 +3,8 @@ import { useGLTF } from '@react-three/drei';
 import { BufferGeometry, Group, MeshStandardMaterial } from 'three';
 import gsap from 'gsap';
 import symbolsUrl from './symbols.glb?url';
-import { Player, drawingDuration } from './Cell';
+import { drawingDuration } from './consts';
+import { Player } from './types';
 
 useGLTF.preload(symbolsUrl);
 
