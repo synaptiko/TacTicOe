@@ -21,9 +21,8 @@ export function Laser({ x, y, player }: LaserProps) {
 
   return (
     <>
-      <mesh position={[x - 3, y - 3, 4]}>
-        {/* TODO: use plane that always face the camera instead of box to save some "resources" */}
-        <boxGeometry args={[0.005, 0.005, 8]} />
+      <mesh position={[x - 3, y - 3, 4]} rotation={[Math.PI / 2, Math.PI / 2, 0]}>
+        <planeGeometry args={[0.01, 8]} />
         {/* TODO: add some slight shimmering effect with shader to sell the laser effect more */}
         <meshStandardMaterial emissive={laserColor} emissiveIntensity={12} />
       </mesh>

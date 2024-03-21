@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useGLTF } from '@react-three/drei';
-import { BufferGeometry, Group, MeshStandardMaterial } from 'three';
+import { BufferGeometry, Group, MeshStandardMaterial, WebGLProgramParametersWithUniforms } from 'three';
 import gsap from 'gsap';
 import symbolsUrl from './symbols.glb?url';
 import { drawingDuration } from './consts';
@@ -18,19 +18,13 @@ const maxIntensity = 20;
 
 export function Symbols({ activePlayer }: SymbolsProps) {
   const {
-    nodes: { x, o, xExtruded, oExtruded },
+    nodes: { x, o },
   } = useGLTF(symbolsUrl);
   const xGeometry = 'geometry' in x && x.geometry instanceof BufferGeometry ? x.geometry : undefined;
   const oGeometry = 'geometry' in o && o.geometry instanceof BufferGeometry ? o.geometry : undefined;
-  const xExtrudedGeometry =
-    'geometry' in xExtruded && xExtruded.geometry instanceof BufferGeometry ? xExtruded.geometry : undefined;
-  const oExtrudedGeometry =
-    'geometry' in oExtruded && oExtruded.geometry instanceof BufferGeometry ? oExtruded.geometry : undefined;
   const groupRef = useRef<Group>(null!);
-  const xRef = useRef<MeshStandardMaterial>(null!);
-  const oRef = useRef<MeshStandardMaterial>(null!);
-  const xExtrudedRef = useRef<MeshStandardMaterial>(null!);
-  const oExtrudedRef = useRef<MeshStandardMaterial>(null!);
+  const xMaterialRef = useRef<MeshStandardMaterial>(null!);
+  const oMaterialRef = useRef<MeshStandardMaterial>(null!);
   const activePlayerRef = useRef(activePlayer);
 
   useMemo(() => (activePlayerRef.current = activePlayer), [activePlayer]);
@@ -51,7 +45,7 @@ export function Symbols({ activePlayer }: SymbolsProps) {
 
   useEffect(() => {
     const tween = gsap.fromTo(
-      activePlayer === 'x' ? [xRef.current, xExtrudedRef.current] : [oRef.current, oExtrudedRef.current],
+      activePlayer === 'x' ? xMaterialRef.current : oMaterialRef.current,
       {
         emissiveIntensity: 0,
       },
@@ -79,20 +73,54 @@ export function Symbols({ activePlayer }: SymbolsProps) {
     };
   }, [activePlayer]);
 
+  useLayoutEffect(() => {
+    xMaterialRef.current.onBeforeCompile = onBeforeCompile;
+    oMaterialRef.current.onBeforeCompile = onBeforeCompile;
+  }, []);
+
   return (
     <group ref={groupRef} dispose={null} position={[0, 0, 4]}>
       <mesh geometry={xGeometry} rotation={[Math.PI / 2, -Math.PI, 0]} scale={16.5} position={[-2.8, -10, 0]}>
-        <meshStandardMaterial ref={xRef} color="#555" emissive="#E72929" emissiveIntensity={0} />
+        <meshStandardMaterial ref={xMaterialRef} color="#555" emissive="#E72929" emissiveIntensity={0} />
       </mesh>
       <mesh geometry={oGeometry} rotation={[0, Math.PI / 2, 0]} scale={16.5} position={[-10, -2.8, 0]}>
-        <meshStandardMaterial ref={oRef} color="#555" emissive="#299CE7" emissiveIntensity={0} />
-      </mesh>
-      <mesh geometry={xExtrudedGeometry} rotation={[Math.PI / 2, -Math.PI, 0]} scale={16.5} position={[-2.8, -10, 0]}>
-        <meshStandardMaterial ref={xExtrudedRef} color="#000" emissive="#731414" emissiveIntensity={0} />
-      </mesh>
-      <mesh geometry={oExtrudedGeometry} rotation={[0, Math.PI / 2, 0]} scale={16.5} position={[-10, -2.8, 0]}>
-        <meshStandardMaterial ref={oExtrudedRef} color="#000" emissive="#144E73" emissiveIntensity={0} />
+        <meshStandardMaterial ref={oMaterialRef} color="#555" emissive="#299CE7" emissiveIntensity={0} />
       </mesh>
     </group>
   );
+}
+
+// FIXME: implement the same way I do for cell, with HMR support
+// TODO: add mMyUv as well and implement "LEDs" effect
+function onBeforeCompile(shader: WebGLProgramParametersWithUniforms) {
+  shader.vertexShader = shader.vertexShader
+    .replace(
+      `varying vec3 vViewPosition;`,
+      `
+      varying vec3 vViewPosition;
+      varying vec3 vMyNormal;
+    `
+    )
+    .replace(
+      `}`,
+      `
+      vMyNormal = normal;
+    }`
+    );
+  shader.fragmentShader = shader.fragmentShader
+    .replace(
+      `vec3 outgoingLight = totalDiffuse + totalSpecular + totalEmissiveRadiance;`,
+      `
+    float intensity = (dot(normalize(vMyNormal), normalize(vec3(0, 0, 1))) > 0.99 ? 1.0 : 0.25);
+    totalDiffuse *= intensity * 5.0;
+    vec3 outgoingLight = (totalDiffuse + totalSpecular + totalEmissiveRadiance) * intensity;
+    `
+    )
+    .replace(
+      `#define STANDARD`,
+      `
+      #define STANDARD
+      varying vec3 vMyNormal;
+    `
+    );
 }

@@ -1,7 +1,7 @@
 import { Canvas, ThreeEvent } from '@react-three/fiber';
 import { times } from 'lodash';
 import { Suspense, useState } from 'react';
-import { Bloom, ChromaticAberration, DepthOfField, EffectComposer, Noise, Vignette } from '@react-three/postprocessing';
+import { Bloom, ChromaticAberration, DepthOfField, EffectComposer, Vignette } from '@react-three/postprocessing';
 import { OrbitControls } from '@react-three/drei';
 import { Cell } from './Cell';
 import { Player, PositionKey } from './types';
@@ -65,22 +65,52 @@ function App() {
           )}
           {lastPosition && <Lasers player={lastPosition[0]} x={lastPosition[1]} y={lastPosition[2]} />}
           <EffectComposer>
+            {/* TODO: consider adding also motion blur */}
             {enableAllEffects ? (
-              <DepthOfField focusDistance={0} focalLength={0.02} bokehScale={2} resolutionX={2048} resolutionY={2048} />
+              <DepthOfField focusDistance={0} focalLength={0.02} bokehScale={2} resolutionX={1024} resolutionY={1024} />
             ) : (
               <></>
             )}
-            <Bloom luminanceThreshold={0} luminanceSmoothing={0} opacity={1} resolutionX={2048} resolutionY={2048} />
+            <Bloom luminanceThreshold={0} luminanceSmoothing={0.5} opacity={1} resolutionX={1024} resolutionY={1024} />
             {enableAllEffects ? (
               <>
+                {/* TODO: try to apply DotScreen only to symbols with multiple passes */}
+                {/* <DotScreen
+                  blendFunction={BlendFunction.NORMAL}
+                  angle={Math.PI / 4}
+                  scale={0.5}
+                /> */}
                 <ChromaticAberration modulationOffset={1 / 3} radialModulation />
-                <Noise opacity={0.0125} />
-                <Noise opacity={0.125} premultiply />
                 <Vignette eskil={false} offset={0.25} darkness={0.5} />
               </>
             ) : (
               <></>
             )}
+            {/* TODO: reconsider later on */}
+            {/* <GodRays
+              sun={oSymbolRef}
+              blendFunction={BlendFunction.SCREEN}
+              samples={60}
+              density={0.96 * 15}
+              decay={0.9 / 1.25}
+              weight={0.4 / 2}
+              exposure={0.6 / 2}
+              clampMax={2}
+              kernelSize={KernelSize.HUGE}
+              blur={true}
+            />
+            <GodRays
+              sun={xSymbolRef}
+              blendFunction={BlendFunction.SCREEN}
+              samples={60}
+              density={0.96 * 15}
+              decay={0.9 / 1.25}
+              weight={0.4 / 2}
+              exposure={0.6 / 2}
+              clampMax={2}
+              kernelSize={KernelSize.HUGE}
+              blur={true}
+            /> */}
           </EffectComposer>
         </Suspense>
       </Canvas>
