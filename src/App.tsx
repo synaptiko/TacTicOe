@@ -1,12 +1,21 @@
 import { Canvas, ThreeEvent } from '@react-three/fiber';
 import { times } from 'lodash';
-import { Suspense, useState } from 'react';
-import { Bloom, ChromaticAberration, DepthOfField, EffectComposer, Vignette } from '@react-three/postprocessing';
+import { Suspense, useRef, useState } from 'react';
+import {
+  Bloom,
+  ChromaticAberration,
+  DepthOfField,
+  EffectComposer,
+  GodRays,
+  Vignette,
+} from '@react-three/postprocessing';
 import { OrbitControls } from '@react-three/drei';
 import { Cell } from './Cell';
 import { Player, PositionKey } from './types';
 import { Symbols } from './Symbols';
 import { Lasers } from './Lasers';
+import { BlendFunction, KernelSize } from 'postprocessing';
+import { Mesh } from 'three';
 
 const isDevelopmentMode = import.meta.env.MODE === 'development';
 const enableAllEffects = !isDevelopmentMode;
@@ -33,10 +42,17 @@ document.addEventListener('keydown', function (event) {
   }
 });
 
+// TODO: think about these ideas:
+// - rubic cube mechanics: rotating the row/column
+//   - maybe if you win, that row/column will rotate? what to do with diagonals then?
+// - rotating to sides and you can go over edges
+
 function App() {
   const [playerPositions, setPlayerPositions] = useState(new Map<PositionKey, Player>());
   const [isX, setIsX] = useState(true);
   const [lastPosition, setLastPosition] = useState<[player: Player, x: number, y: number] | null>(null);
+  const xSymbolRef = useRef<Mesh>(null!);
+  const oSymbolRef = useRef<Mesh>(null!);
 
   function handleClick(event: ThreeEvent<MouseEvent>, position: PositionKey, x: number, y: number) {
     event.stopPropagation();
@@ -57,17 +73,50 @@ function App() {
           <color attach="background" args={[background]} />
           {isDevelopmentMode && <OrbitControls />}
           <directionalLight color="#ffedf8" intensity={1.25} position={[50, 35, 100]} />
-          <Symbols activePlayer={isX ? 'x' : 'o'} />
+          <Symbols activePlayer={isX ? 'x' : 'o'} xSymbolRef={xSymbolRef} oSymbolRef={oSymbolRef} />
           {times(7, (x: number) =>
             times(7, (y: number) => (
               <Cell key={`${x}:${y}`} x={x} y={y} player={playerPositions.get(`${x}:${y}`)} onClick={handleClick} />
             ))
           )}
           {lastPosition && <Lasers player={lastPosition[0]} x={lastPosition[1]} y={lastPosition[2]} />}
+          {/* <SparksAndSmokeTest /> */}
           <EffectComposer>
             {/* TODO: consider adding also motion blur */}
             {enableAllEffects ? (
-              <DepthOfField focusDistance={0} focalLength={0.02} bokehScale={2} resolutionX={1024} resolutionY={1024} />
+              <>
+                <DepthOfField
+                  focusDistance={0}
+                  focalLength={0.02}
+                  bokehScale={2}
+                  resolutionX={1024}
+                  resolutionY={1024}
+                />
+                <GodRays
+                  sun={xSymbolRef}
+                  blendFunction={BlendFunction.SCREEN}
+                  samples={60}
+                  density={0.96 * 5}
+                  decay={0.9 / 1.5}
+                  weight={0.4 / 4}
+                  exposure={0.6 / 3}
+                  clampMax={2}
+                  kernelSize={KernelSize.HUGE}
+                  blur={true}
+                />
+                <GodRays
+                  sun={oSymbolRef}
+                  blendFunction={BlendFunction.SCREEN}
+                  samples={60}
+                  density={0.96 * 5}
+                  decay={0.9 / 1.5}
+                  weight={0.4 / 4}
+                  exposure={0.6 / 3}
+                  clampMax={2}
+                  kernelSize={KernelSize.HUGE}
+                  blur={true}
+                />
+              </>
             ) : (
               <></>
             )}
@@ -86,31 +135,6 @@ function App() {
             ) : (
               <></>
             )}
-            {/* TODO: reconsider later on */}
-            {/* <GodRays
-              sun={oSymbolRef}
-              blendFunction={BlendFunction.SCREEN}
-              samples={60}
-              density={0.96 * 15}
-              decay={0.9 / 1.25}
-              weight={0.4 / 2}
-              exposure={0.6 / 2}
-              clampMax={2}
-              kernelSize={KernelSize.HUGE}
-              blur={true}
-            />
-            <GodRays
-              sun={xSymbolRef}
-              blendFunction={BlendFunction.SCREEN}
-              samples={60}
-              density={0.96 * 15}
-              decay={0.9 / 1.25}
-              weight={0.4 / 2}
-              exposure={0.6 / 2}
-              clampMax={2}
-              kernelSize={KernelSize.HUGE}
-              blur={true}
-            /> */}
           </EffectComposer>
         </Suspense>
       </Canvas>

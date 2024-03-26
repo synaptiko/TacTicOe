@@ -1,6 +1,6 @@
-import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { MutableRefObject, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useGLTF } from '@react-three/drei';
-import { BufferGeometry, Group, MeshStandardMaterial, WebGLProgramParametersWithUniforms } from 'three';
+import { BufferGeometry, Group, Mesh, MeshStandardMaterial, WebGLProgramParametersWithUniforms } from 'three';
 import gsap from 'gsap';
 import symbolsUrl from './symbols.glb?url';
 import { drawingDuration } from './consts';
@@ -10,13 +10,15 @@ useGLTF.preload(symbolsUrl);
 
 type SymbolsProps = {
   activePlayer?: Player;
+  xSymbolRef: MutableRefObject<Mesh>;
+  oSymbolRef: MutableRefObject<Mesh>;
 };
 
 const introDuration = 1; // seconds
 const highlightDuration = 0.25; // seconds
 const maxIntensity = 20;
 
-export function Symbols({ activePlayer }: SymbolsProps) {
+export function Symbols({ activePlayer, xSymbolRef, oSymbolRef }: SymbolsProps) {
   const {
     nodes: { x, o },
   } = useGLTF(symbolsUrl);
@@ -80,10 +82,16 @@ export function Symbols({ activePlayer }: SymbolsProps) {
 
   return (
     <group ref={groupRef} dispose={null} position={[0, 0, 4]}>
-      <mesh geometry={xGeometry} rotation={[Math.PI / 2, -Math.PI, 0]} scale={16.5} position={[-2.8, -10, 0]}>
+      <mesh
+        ref={xSymbolRef}
+        geometry={xGeometry}
+        rotation={[Math.PI / 2, -Math.PI, 0]}
+        scale={16.5}
+        position={[-2.8, -10, 0]}
+      >
         <meshStandardMaterial ref={xMaterialRef} color="#555" emissive="#E72929" emissiveIntensity={0} />
       </mesh>
-      <mesh geometry={oGeometry} rotation={[0, Math.PI / 2, 0]} scale={16.5} position={[-10, -2.8, 0]}>
+      <mesh ref={oSymbolRef} geometry={oGeometry} rotation={[0, Math.PI / 2, 0]} scale={16.5} position={[-10, -2.8, 0]}>
         <meshStandardMaterial ref={oMaterialRef} color="#555" emissive="#299CE7" emissiveIntensity={0} />
       </mesh>
     </group>
@@ -92,6 +100,7 @@ export function Symbols({ activePlayer }: SymbolsProps) {
 
 // FIXME: implement the same way I do for cell, with HMR support
 // TODO: add mMyUv as well and implement "LEDs" effect
+// TODO: I can use uv from Blender to drive intensity, instead of using normal
 function onBeforeCompile(shader: WebGLProgramParametersWithUniforms) {
   shader.vertexShader = shader.vertexShader
     .replace(

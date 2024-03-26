@@ -13,9 +13,7 @@ function mix(color1: string, color2: string, factor: number) {
 }
 
 export function Laser({ x, y, player }: LaserProps) {
-  {
-    /* TODO: move these colors into consts file too */
-  }
+  // TODO: move these colors into consts file too
   const laserColor = player === 'x' ? '#E72929' : '#299CE7';
   const hotSpotColor = mix(laserColor, 'white', 0.25);
 
