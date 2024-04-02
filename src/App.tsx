@@ -73,7 +73,6 @@ function App() {
             ))
           )}
           {lastPosition && <Lasers player={lastPosition[0]} x={lastPosition[1]} y={lastPosition[2]} />}
-          {/* <SmokeFBO /> */}
           <EffectComposer>
             {/* TODO: consider adding also motion blur */}
             {enableAllEffects ? (

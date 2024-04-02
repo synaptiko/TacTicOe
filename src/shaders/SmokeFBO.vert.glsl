@@ -1,14 +1,25 @@
 uniform sampler2D uPositions;
-
+uniform float uMaxAge;
 varying float vAge;
+float size = 100.0;
+
+float mapRange(float value, float fromMin, float fromMax, float toMin, float toMax) {
+  return toMin + (value - fromMin) * (toMax - toMin) / (fromMax - fromMin);
+}
 
 void main() {
   vec4 data = texture2D(uPositions, position.xy);
   vec3 pos = data.xyz;
   float age = data.w;
 
-  // for testing purposes
-  pos.z = age / 10.0;
+  vAge = age;
+
+  if (vAge == -1.0) {
+    gl_Position = vec4(0.0, 0.0, 0.0, 0.0);
+    gl_PointSize = 0.0;
+
+    return;
+  }
 
   vec4 modelPosition = modelMatrix * vec4(pos, 1.0);
   vec4 viewPosition = viewMatrix * modelPosition;
@@ -16,8 +27,6 @@ void main() {
 
   gl_Position = projectedPosition;
 
-  gl_PointSize = 50.0;
-  gl_PointSize *= -1.0 / viewPosition.z;
-
-  vAge = age;
+  size *= mapRange(age, 0.0, uMaxAge, 2.0, 20.0);
+  gl_PointSize = size * (-1.0 / viewPosition.z);
 }
