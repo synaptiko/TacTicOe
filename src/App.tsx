@@ -1,15 +1,8 @@
 import { Canvas, ThreeEvent } from '@react-three/fiber';
 import { times } from 'lodash';
 import { Suspense, useRef, useState } from 'react';
-import {
-  Bloom,
-  ChromaticAberration,
-  DepthOfField,
-  EffectComposer,
-  GodRays,
-  Vignette,
-} from '@react-three/postprocessing';
-import { OrbitControls } from '@react-three/drei';
+import { Bloom, ChromaticAberration, EffectComposer, GodRays, Vignette } from '@react-three/postprocessing';
+import { OrbitControls, StatsGl } from '@react-three/drei';
 import { Cell } from './Cell';
 import { Player, PositionKey } from './types';
 import { Symbols } from './Symbols';
@@ -80,18 +73,19 @@ function App() {
             ))
           )}
           {lastPosition && <Lasers player={lastPosition[0]} x={lastPosition[1]} y={lastPosition[2]} />}
-          {/* <SparksAndSmokeTest /> */}
+          {/* <SmokeFBO /> */}
           <EffectComposer>
             {/* TODO: consider adding also motion blur */}
             {enableAllEffects ? (
               <>
-                <DepthOfField
+                {/* TODO: looks like depth of field is making rendering very slow; consider removing it */}
+                {/* <DepthOfField
                   focusDistance={0}
                   focalLength={0.02}
                   bokehScale={2}
                   resolutionX={1024}
                   resolutionY={1024}
-                />
+                /> */}
                 <GodRays
                   sun={xSymbolRef}
                   blendFunction={BlendFunction.SCREEN}
@@ -121,21 +115,10 @@ function App() {
               <></>
             )}
             <Bloom luminanceThreshold={0} luminanceSmoothing={0.5} opacity={1} resolutionX={1024} resolutionY={1024} />
-            {enableAllEffects ? (
-              <>
-                {/* TODO: try to apply DotScreen only to symbols with multiple passes */}
-                {/* <DotScreen
-                  blendFunction={BlendFunction.NORMAL}
-                  angle={Math.PI / 4}
-                  scale={0.5}
-                /> */}
-                <ChromaticAberration modulationOffset={1 / 3} radialModulation />
-                <Vignette eskil={false} offset={0.25} darkness={0.5} />
-              </>
-            ) : (
-              <></>
-            )}
+            {enableAllEffects ? <ChromaticAberration modulationOffset={1 / 3} radialModulation /> : <></>}
+            <Vignette eskil={false} offset={0.25} darkness={0.5} />
           </EffectComposer>
+          {isDevelopmentMode && <StatsGl />}
         </Suspense>
       </Canvas>
     </div>

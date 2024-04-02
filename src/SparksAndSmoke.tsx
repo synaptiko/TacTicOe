@@ -1,8 +1,6 @@
-import { useRef, useMemo, useEffect, MutableRefObject } from 'react';
+import { useRef, useMemo, MutableRefObject } from 'react';
 import { MaterialNode, extend, useFrame } from '@react-three/fiber';
 import { AdditiveBlending, Points, ShaderMaterial, Vector4 } from 'three';
-import gsap from 'gsap';
-import { drawingDuration } from './consts';
 
 class ParticleMaterial extends ShaderMaterial {
   constructor() {
@@ -26,9 +24,9 @@ class ParticleMaterial extends ShaderMaterial {
           vec4 viewPosition = viewMatrix * modelPosition;
           vec4 projectedPosition = projectionMatrix * viewPosition;
 
-          size *= (((age + 2.0) / 12.0) * 5.0);
+          size *= (((age + 2.0) / 4.0) * 5.0);
           gl_Position = projectedPosition;
-          gl_PointSize = size * (1.0 / - viewPosition.z);
+          gl_PointSize = size * (-1.0 / viewPosition.z);
         }
       `,
       fragmentShader: `
@@ -42,7 +40,7 @@ class ParticleMaterial extends ShaderMaterial {
           vec2 cxy = 2.0 * gl_PointCoord - 1.0;
           float r = dot(cxy, cxy);
           // TODO: requires further adjustments
-          float alpha = clamp(0.5 - r, 0.0, 1.0) * ((10.0 - vAge) / 10.0);
+          float alpha = clamp(0.5 - r, 0.0, 1.0) * ((2.0 - vAge) / 2.0);
 
           if (r > 1.0) {
             discard;
@@ -77,8 +75,8 @@ type Particles = {
 
 const particles: Particles = {
   smoke: {
-    maxAge: 10,
-    speed: 50,
+    maxAge: 2,
+    speed: 50 / 250,
     minPerSecond: 10,
     maxPerSecond: 20,
   },
@@ -123,11 +121,10 @@ export const SparksAndSmoke = ({ emitterRefs: [emitter1Ref, emitter2Ref] }: Spar
     return [ids, types, ages, positions];
   }, []);
 
-  useFrame(({ clock }) => {
-    const deltaTime = clock.getDelta();
+  useFrame((_, delta) => {
     const { attributes } = particlesRef.current.geometry;
     let newParticlesCount =
-      Math.ceil(particles.smoke.maxPerSecond * deltaTime * 1000) * (emitter1Ref.current.w + emitter2Ref.current.w);
+      Math.ceil(particles.smoke.maxPerSecond * delta) * (emitter1Ref.current.w + emitter2Ref.current.w);
     let emitter: Vector4 | undefined = emitter1Ref.current.w === 1 ? emitter1Ref.current : emitter2Ref.current;
 
     if (emitter1Ref.current.w === 0 && emitter2Ref.current.w === 0) {
@@ -174,9 +171,9 @@ export const SparksAndSmoke = ({ emitterRefs: [emitter1Ref, emitter2Ref] }: Spar
           continue;
         }
 
-        attributes.age.array[i] += deltaTime * 1000;
+        attributes.age.array[i] += delta;
         attributes.position.array[i * 3 + 2] +=
-          particles.smoke.speed * deltaTime * ((attributes.age.array[i] / particles.smoke.maxAge) * 5);
+          particles.smoke.speed * delta * ((attributes.age.array[i] / particles.smoke.maxAge) * 5);
       }
     }
 
@@ -196,52 +193,4 @@ export const SparksAndSmoke = ({ emitterRefs: [emitter1Ref, emitter2Ref] }: Spar
       <particleMaterial attach="material" depthWrite={false} vertexColors blending={AdditiveBlending} transparent />
     </points>
   );
-};
-
-class RotatingEmitter {
-  constructor(
-    private emitter: Vector4,
-    private amplitude: number
-  ) {}
-
-  set value(angle: number) {
-    const { emitter, amplitude } = this;
-
-    emitter.setX(amplitude * Math.cos(angle));
-    emitter.setY(amplitude * Math.sin(angle));
-  }
-}
-
-export const SparksAndSmokeTest = () => {
-  const emitter1Ref = useRef(new Vector4(0, 0, 0, 0));
-  const emitter2Ref = useRef(new Vector4(0, 0, 0, 0));
-
-  useEffect(() => {
-    const rotatingEmitter1 = new RotatingEmitter(emitter1Ref.current, 0.33);
-    const rotatingEmitter2 = new RotatingEmitter(emitter2Ref.current, 0.33 / 2);
-    const tween = gsap.fromTo(
-      [rotatingEmitter1, rotatingEmitter2],
-      { value: 0 },
-      {
-        value: Math.PI * 2,
-        duration: drawingDuration,
-        repeat: -1,
-        ease: 'none',
-        onStart: () => {
-          emitter1Ref.current.setW(1);
-          emitter2Ref.current.setW(1);
-        },
-        onComplete: () => {
-          emitter1Ref.current.setW(0);
-          emitter2Ref.current.setW(0);
-        },
-      }
-    );
-
-    return () => {
-      tween.kill();
-    };
-  }, []);
-
-  return <SparksAndSmoke emitterRefs={[emitter1Ref, emitter2Ref]} />;
 };

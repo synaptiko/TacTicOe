@@ -101,7 +101,7 @@ class EmitterWithOffset extends Vector4 {
     private xOffset: number,
     private yOffset: number
   ) {
-    super(0, 0, 0, 0);
+    super(0, 0, 0.05, 0);
   }
 
   setX(x: number) {
