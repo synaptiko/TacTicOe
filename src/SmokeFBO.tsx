@@ -6,6 +6,7 @@ import {
   AdditiveBlending,
   DataTexture,
   FloatType,
+  MathUtils,
   NearestFilter,
   OrthographicCamera,
   RGBAFormat,
@@ -18,31 +19,40 @@ import {
 import { MaterialNode, createPortal, extend, useFrame } from '@react-three/fiber';
 import { MutableRefObject, useMemo, useRef } from 'react';
 import { useFBO } from '@react-three/drei';
+import { symbolThickness } from './consts';
 
+// const minAge = 0.5;
 const maxAge = 2.0;
+const emitterCount = 2; // = emitterRefs.length (needs to be in-sync)
+const emitterParticlesMin = 5; // per-frame
+const emitterParticlesMax = 25; // per-frame
 
-// TODO: could be useful later =>
-// MathUtils.randFloatSpread(360);
+const [width, height] = (() => {
+  // we have an assumption that we will create that amount of particles per frame at 120 FPS
+  const maxParticleAmount = maxAge * emitterParticlesMax * emitterCount * 120;
+  const size = Math.ceil(Math.sqrt(maxParticleAmount));
+
+  return [size, size];
+})();
 
 // TODO: next steps
-// 1. pass current emitters position with "spread" radius and density per "ideal frame" (= 120 FPS) with "buffering"
-// 2. create proper particle shape with some noise and light/shadows
-// 3. add variable maxAge, velocity and acceleration; adjust smoke particles to it
-// 4. integrate curl noise to smoke particle
-// 5. add sparks with gravity
+// 1. add variable/dynamic maxAge, velocity and acceleration; adjust smoke particles to it
+// 2. integrate curl noise to smoke particle
+// 3. create proper particle texture with some noise and light/shadows
+// 4. add sparks with gravity
+// 5. refactor per-frame-definition of particles amount to be adaptive to current FPS instead; we will need to define some acceptable range like 30-120 FPS and implement different way to get emitter's positions with interpolation based on time variable to not create "clumps" of particles
 // 6. fix remaining TODOs in this file
 // 7. rename the file into SparksAndSmoke.tsx
+// 8. fix particles' scale (responsiveness related)
 
 function fillEmptyPositions(width: number, height: number) {
   const data = new Float32Array(width * height * 4);
 
-  for (let i = 0; i < data.length; i++) {
-    const stride = i * 4;
-
-    data[stride] = 0; // x
-    data[stride + 1] = 0; // y
-    data[stride + 2] = 0; // z
-    data[stride + 3] = -1.0; // age
+  for (let i = 0; i < data.length; i += 4) {
+    data[i] = 0; // x
+    data[i + 1] = 0; // y
+    data[i + 2] = 0; // z
+    data[i + 3] = -1.0; // age
   }
 
   return data;
@@ -67,6 +77,49 @@ function createDataTexture(fill: (width: number, height: number) => Float32Array
   texture.needsUpdate = true;
 
   return texture;
+}
+
+function clearEmitters(texture: DataTexture, startIndex: number) {
+  const { data } = texture.image;
+
+  for (let i = startIndex; i < data.length; i += 4) {
+    data[i] = 0;
+    data[i + 1] = 0;
+    data[i + 2] = 0;
+    data[i + 3] = -1;
+  }
+}
+
+function fillEmitters(
+  texture: DataTexture,
+  freeEmitterIdRef: MutableRefObject<[id: number, length: number]>,
+  emitter: Vector4,
+  startIndex: number,
+  spread: number,
+  amount: number
+) {
+  if (emitter.w === 0) {
+    return startIndex;
+  }
+
+  for (let i = 0; i < amount; i += 1) {
+    texture.image.data[startIndex + 0] = emitter.x + Math.random() * spread - spread / 2;
+    texture.image.data[startIndex + 1] = emitter.y + Math.random() * spread - spread / 2;
+    texture.image.data[startIndex + 2] = emitter.z;
+    texture.image.data[startIndex + 3] = getFreeId(freeEmitterIdRef);
+
+    startIndex += 4;
+  }
+
+  return startIndex;
+}
+
+function getFreeId(ref: MutableRefObject<[id: number, length: number]>) {
+  const [id, length] = ref.current;
+
+  ref.current[0] = (id + 1) % length;
+
+  return id;
 }
 
 class SimulationMaterial extends ShaderMaterial {
@@ -128,55 +181,68 @@ const Simulation = ({ width, height, emitterRefs: [emitter1Ref, emitter2Ref], on
   ]);
   const simulationMaterialRef = useRef<SimulationMaterial>(null!);
   const positionsTexture = useMemo(() => createDataTexture(fillEmptyPositions, width, height), [width, height]);
-  const emittersTexture = useMemo(() => createDataTexture(fillEmptyEmitters, 2, 1), []);
-  const freeEmitterId = useRef(0);
+  const emittersTexture = useMemo(
+    () => createDataTexture(fillEmptyEmitters, emitterParticlesMax, emitterCount /* = emitterRefs.length */),
+    []
+  );
+  const freeEmitterIdRef = useRef<[id: number, length: number]>(
+    useMemo(() => [0, positionsTexture.image.data.length / 4], [positionsTexture])
+  );
+  useMemo(() => (freeEmitterIdRef.current[1] = positionsTexture.image.data.length / 4), [positionsTexture]); // update length accordingly
+  const lastParticleEmitTimeRef = useRef<number>(Number.POSITIVE_INFINITY);
+  const emittersPrevEnabledRef = useRef<[enabled1: boolean | undefined, enabled2: boolean | undefined]>([
+    undefined,
+    undefined,
+  ]);
 
-  useFrame(({ gl }, delta) => {
-    const [writeTarget, readTarget, initPhase] = targets.current;
+  useFrame(({ gl, clock }, delta) => {
+    const elapsed = clock.elapsedTime;
 
-    // TODO: create function to add emitters, including spread radius and density
-    if (emitter1Ref.current.w === 0 && emitter2Ref.current.w === 0) {
-      emittersTexture.image.data[0] = 0;
-      emittersTexture.image.data[1] = 0;
-      emittersTexture.image.data[2] = 0;
-      emittersTexture.image.data[3] = -1;
-      emittersTexture.image.data[4] = 0;
-      emittersTexture.image.data[5] = 0;
-      emittersTexture.image.data[6] = 0;
-      emittersTexture.image.data[7] = -1;
-    } else if (emitter1Ref.current.w !== 0 && emitter2Ref.current.w !== 0) {
-      emittersTexture.image.data[0] = emitter1Ref.current.x;
-      emittersTexture.image.data[1] = emitter1Ref.current.y;
-      emittersTexture.image.data[2] = emitter1Ref.current.z;
-      emittersTexture.image.data[3] = freeEmitterId.current++;
-      emittersTexture.image.data[4] = emitter2Ref.current.x;
-      emittersTexture.image.data[5] = emitter2Ref.current.y;
-      emittersTexture.image.data[6] = emitter2Ref.current.z;
-      emittersTexture.image.data[7] = freeEmitterId.current++;
-    } else if (emitter1Ref.current.w === 0) {
-      emittersTexture.image.data[0] = emitter1Ref.current.x;
-      emittersTexture.image.data[1] = emitter1Ref.current.y;
-      emittersTexture.image.data[2] = emitter1Ref.current.z;
-      emittersTexture.image.data[3] = freeEmitterId.current++;
-      emittersTexture.image.data[4] = 0;
-      emittersTexture.image.data[5] = 0;
-      emittersTexture.image.data[6] = 0;
-      emittersTexture.image.data[7] = -1;
-    } else {
-      emittersTexture.image.data[0] = emitter2Ref.current.x;
-      emittersTexture.image.data[1] = emitter2Ref.current.y;
-      emittersTexture.image.data[2] = emitter2Ref.current.z;
-      emittersTexture.image.data[3] = freeEmitterId.current++;
-      emittersTexture.image.data[4] = 0;
-      emittersTexture.image.data[5] = 0;
-      emittersTexture.image.data[6] = 0;
-      emittersTexture.image.data[7] = -1;
+    if (
+      elapsed - lastParticleEmitTimeRef.current > maxAge &&
+      emitter1Ref.current.w === 0 &&
+      emitter2Ref.current.w === 0
+    ) {
+      // nothing to animate anymore
+      return;
+    } else if (emitter1Ref.current.w === 1 || emitter2Ref.current.w === 1) {
+      lastParticleEmitTimeRef.current = elapsed;
     }
 
-    // TODO: cache positionsTexture.image.data.length
-    freeEmitterId.current = freeEmitterId.current % positionsTexture.image.data.length;
-    // TODO: detect if update is needed
-    emittersTexture.needsUpdate = true;
+    const [writeTarget, readTarget, initPhase] = targets.current;
+
+    const emitter1Enabled = emitter1Ref.current.w === 1;
+    const emitter2Enabled = emitter2Ref.current.w === 1;
+
+    if (
+      emitter1Enabled ||
+      emitter2Enabled ||
+      emittersPrevEnabledRef.current[0] !== emitter1Enabled ||
+      emittersPrevEnabledRef.current[1] !== emitter2Enabled
+    ) {
+      let index = 0;
+      index = fillEmitters(
+        emittersTexture,
+        freeEmitterIdRef,
+        emitter1Ref.current,
+        index,
+        symbolThickness,
+        MathUtils.randInt(emitterParticlesMin, emitterParticlesMax)
+      );
+      index = fillEmitters(
+        emittersTexture,
+        freeEmitterIdRef,
+        emitter2Ref.current,
+        index,
+        symbolThickness,
+        MathUtils.randInt(emitterParticlesMin, emitterParticlesMax)
+      );
+      clearEmitters(emittersTexture, index);
+      emittersTexture.needsUpdate = true;
+    }
+
+    emittersPrevEnabledRef.current[0] = emitter1Enabled;
+    emittersPrevEnabledRef.current[1] = emitter2Enabled;
 
     if (!initPhase) {
       simulationMaterialRef.current.uniforms.uPositions.value = readTarget.texture;
@@ -210,8 +276,6 @@ type SmokeFBOProps = {
 };
 
 export const SmokeFBO = ({ emitterRefs }: SmokeFBOProps) => {
-  const width = 128;
-  const height = 128;
   const materialRef = useRef<ShaderMaterial>(null!);
   const particlesPosition = useMemo(() => {
     const length = width * height;

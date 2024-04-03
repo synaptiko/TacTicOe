@@ -23,12 +23,19 @@ type CellProps = {
   onClick: (event: ThreeEvent<MouseEvent>, position: PositionKey, x: number, y: number) => void;
 };
 
+const isDevelopmentMode = import.meta.env.MODE === 'development';
+
 export function Cell({ x, y, player, onClick }: CellProps) {
   const meshRef = useRef<Mesh>(null!);
   const materialRef = useRef<CellMaterial>(null!);
   const uEdges = useMemo(() => new Vector4(x === 0 ? 0 : 1, y === 0 ? 0 : 1, x === 6 ? 0 : 1, y === 6 ? 0 : 1), [x, y]);
 
   useEffect(() => {
+    if (isDevelopmentMode) {
+      meshRef.current.position.setZ(-5);
+      return;
+    }
+
     const tween = gsap.to(meshRef.current.position, {
       x: x - 3,
       y: y - 3,

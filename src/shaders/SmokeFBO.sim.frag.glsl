@@ -17,7 +17,7 @@ void main() {
     return;
   } else if (age != -1.0) {
     // TODO: implement velocity from texture
-    pos += vec3(0.0, 0.0, 0.33 * uDelta);
+    pos += vec3(0.0, 0.0, 2.0 * uDelta);
 
     gl_FragColor = vec4(pos, age + uDelta);
     return;

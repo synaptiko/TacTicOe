@@ -1,7 +1,6 @@
 uniform sampler2D uPositions;
 uniform float uMaxAge;
 varying float vAge;
-float size = 100.0;
 
 float mapRange(float value, float fromMin, float fromMax, float toMin, float toMax) {
   return toMin + (value - fromMin) * (toMax - toMin) / (fromMax - fromMin);
@@ -27,6 +26,6 @@ void main() {
 
   gl_Position = projectedPosition;
 
-  size *= mapRange(age, 0.0, uMaxAge, 2.0, 20.0);
+  float size = pow(mapRange(age, 0.0, uMaxAge, 0.0, 1.0), 0.5) * 2500.0;
   gl_PointSize = size * (-1.0 / viewPosition.z);
 }
