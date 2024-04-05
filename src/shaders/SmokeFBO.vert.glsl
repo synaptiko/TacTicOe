@@ -1,4 +1,4 @@
-uniform sampler2D uPositions;
+uniform sampler2D uParticles;
 uniform float uMaxAge;
 varying float vAge;
 
@@ -7,7 +7,7 @@ float mapRange(float value, float fromMin, float fromMax, float toMin, float toM
 }
 
 void main() {
-  vec4 data = texture2D(uPositions, position.xy);
+  vec4 data = texture2D(uParticles, position.xy);
   vec3 pos = data.xyz;
   float age = data.w;
 

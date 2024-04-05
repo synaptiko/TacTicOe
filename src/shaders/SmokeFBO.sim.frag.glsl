@@ -1,5 +1,5 @@
-uniform sampler2D uPositions;
-uniform vec2 uPositionsResolution;
+uniform sampler2D uParticles;
+uniform vec2 uParticlesResolution;
 uniform sampler2D uEmitters;
 uniform vec2 uEmittersResolution;
 uniform float uDelta;
@@ -7,8 +7,8 @@ uniform float uMaxAge;
 varying vec2 vUv;
 
 void main() {
-  float id = (gl_FragCoord.x - 0.5) + (gl_FragCoord.y - 0.5) * uPositionsResolution.x;
-  vec4 data = texture2D(uPositions, vUv);
+  float id = (gl_FragCoord.x - 0.5) + (gl_FragCoord.y - 0.5) * uParticlesResolution.x;
+  vec4 data = texture2D(uParticles, vUv);
   vec3 pos = data.xyz;
   float age = data.w;
 

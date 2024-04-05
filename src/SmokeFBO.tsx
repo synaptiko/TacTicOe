@@ -51,14 +51,14 @@ const [width, height] = (() => {
 // 7. rename the file into SparksAndSmoke.tsx
 // 8. fix particles' scale (responsiveness related)
 
-function fillEmptyPositions(width: number, height: number) {
+function fillEmptyParticles(width: number, height: number) {
   const data = new Float32Array(width * height * 4);
 
   for (let i = 0; i < data.length; i += 4) {
     data[i] = 0; // x
     data[i + 1] = 0; // y
     data[i + 2] = 0; // z
-    data[i + 3] = -1.0; // age
+    data[i + 3] = -1; // age
   }
 
   return data;
@@ -68,10 +68,10 @@ function fillEmptyEmitters(width: number, height: number) {
   const data = new Float32Array(width * height * 4);
 
   for (let i = 0; i < data.length; i += 4) {
-    data[i] = 0.0; // x
-    data[i + 1] = 0.0; // y
-    data[i + 2] = 0.0; // z
-    data[i + 3] = 0.0; // particle id
+    data[i] = 0; // x
+    data[i + 1] = 0; // y
+    data[i + 2] = 0; // z
+    data[i + 3] = 0; // particle id
   }
 
   return data;
@@ -129,10 +129,10 @@ function getFreeId(ref: MutableRefObject<[id: number, length: number]>) {
 }
 
 class SimulationMaterial extends ShaderMaterial {
-  constructor(positionsTexture: DataTexture, emittersTexture: DataTexture) {
+  constructor(particlesTexture: DataTexture, emittersTexture: DataTexture) {
     const uniforms = {
-      uPositions: { value: positionsTexture },
-      uPositionsResolution: { value: [positionsTexture.image.width, positionsTexture.image.height] },
+      uParticles: { value: particlesTexture },
+      uParticlesResolution: { value: [particlesTexture.image.width, particlesTexture.image.height] },
       uEmitters: { value: emittersTexture },
       uEmittersResolution: { value: [emittersTexture.image.width, emittersTexture.image.height] },
       uDelta: { value: 0 },
@@ -243,15 +243,15 @@ const Simulation = ({ width, height, emitterRefs: [emitter1Ref, emitter2Ref], on
     true,
   ]);
   const simulationMaterialRef = useRef<SimulationMaterial>(null!);
-  const positionsTexture = useMemo(() => createDataTexture(fillEmptyPositions, width, height), [width, height]);
+  const particlesTexture = useMemo(() => createDataTexture(fillEmptyParticles, width, height), [width, height]);
   const emittersTexture = useMemo(
     () => createDataTexture(fillEmptyEmitters, emitterParticlesMax, emitterCount /* = emitterRefs.length */),
     []
   );
   const freeEmitterIdRef = useRef<[id: number, length: number]>(
-    useMemo(() => [0, positionsTexture.image.data.length / 4], [positionsTexture])
+    useMemo(() => [0, particlesTexture.image.data.length / 4], [particlesTexture])
   );
-  useMemo(() => (freeEmitterIdRef.current[1] = positionsTexture.image.data.length / 4), [positionsTexture]); // update length accordingly
+  useMemo(() => (freeEmitterIdRef.current[1] = particlesTexture.image.data.length / 4), [particlesTexture]); // update length accordingly
   const lastParticleEmitTimeRef = useRef<number>(Number.POSITIVE_INFINITY);
   const emittersPrevEnabledRef = useRef<[enabled1: boolean | undefined, enabled2: boolean | undefined]>([
     undefined,
@@ -315,11 +315,11 @@ const Simulation = ({ width, height, emitterRefs: [emitter1Ref, emitter2Ref], on
     const [writeTarget, readTarget, initPhase] = targets.current;
 
     // if (initPhase) {
-    //   debug.expose('Simulation initial input', simulationMaterialRef.current.uniforms.uPositions.value);
+    //   debug.expose('Simulation initial input', simulationMaterialRef.current.uniforms.uParticles.value);
     // }
 
     if (!initPhase) {
-      simulationMaterialRef.current.uniforms.uPositions.value = readTarget.texture;
+      simulationMaterialRef.current.uniforms.uParticles.value = readTarget.texture;
     }
     simulationMaterialRef.current.uniforms.uDelta.value = delta;
 
@@ -337,7 +337,7 @@ const Simulation = ({ width, height, emitterRefs: [emitter1Ref, emitter2Ref], on
 
   return createPortal(
     <mesh>
-      <simulationMaterial ref={simulationMaterialRef} args={[positionsTexture, emittersTexture]} />
+      <simulationMaterial ref={simulationMaterialRef} args={[particlesTexture, emittersTexture]} />
       <bufferGeometry>
         <bufferAttribute attach="index" array={indices} count={indices.length} />
         <bufferAttribute attach="attributes-position" count={positions.length / 3} array={positions} itemSize={3} />
@@ -354,7 +354,7 @@ type SmokeFBOProps = {
 
 export const SmokeFBO = ({ emitterRefs }: SmokeFBOProps) => {
   const materialRef = useRef<ShaderMaterial>(null!);
-  const particlesPosition = useMemo(() => {
+  const particlePositions = useMemo(() => {
     const length = width * height;
     const particles = new Float32Array(length * 3);
 
@@ -369,14 +369,14 @@ export const SmokeFBO = ({ emitterRefs }: SmokeFBOProps) => {
   }, []);
   const uniforms = useMemo(
     () => ({
-      uPositions: { value: null },
+      uParticles: { value: null },
       uMaxAge: { value: maxAge },
     }),
     []
   );
 
-  function handleFrame(uPositions: Texture) {
-    materialRef.current.uniforms.uPositions.value = uPositions;
+  function handleFrame(uParticles: Texture) {
+    materialRef.current.uniforms.uParticles.value = uParticles;
   }
 
   return (
@@ -386,8 +386,8 @@ export const SmokeFBO = ({ emitterRefs }: SmokeFBOProps) => {
         <bufferGeometry>
           <bufferAttribute
             attach="attributes-position"
-            count={particlesPosition.length / 3}
-            array={particlesPosition}
+            count={particlePositions.length / 3}
+            array={particlePositions}
             itemSize={3}
           />
         </bufferGeometry>
