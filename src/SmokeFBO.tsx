@@ -10,6 +10,7 @@ import {
   NearestFilter,
   OrthographicCamera,
   RGBAFormat,
+  RenderTargetOptions,
   Scene,
   ShaderMaterial,
   Texture,
@@ -26,19 +27,31 @@ import { useTextureDebugger } from './useTextureDebugger';
 import { useRenderTargetDebugger } from './useRenderTargetDebugger';
 
 // const minAge = 0.5;
-const maxAge = 2.0;
+// const maxAge = 2.0;
+const maxAge = 0.5;
 const emitterCount = 2; // = emitterRefs.length (needs to be in-sync)
 // const emitterParticlesMin = 5; // per-frame
 // const emitterParticlesMax = 25; // per-frame
 const emitterParticlesMin = 1; // per-frame
 const emitterParticlesMax = 1; // per-frame
 
+// We use the following structure for particles in DataTexture:
+// 1st pixel = position (x, y, z) and age
+// 2nd pixel = velocity (x, y, z) and max age
+// 3rd pixel = acceleration (x, y, z) and particle type (0 = smoke, 1 = spark)
+//
+// The layout of these pixels is as follows:
+// 1/3 on v coordinate = 1st pixel
+// 2/3 on v coordinate = 2nd pixel
+// 3/3 on v coordinate = 3rd pixel
+const dataPixelsCount = 3;
+
 const [width, height] = (() => {
   // we have an assumption that we will create that amount of particles per frame at 120 FPS
   const maxParticleAmount = maxAge * emitterParticlesMax * emitterCount * 120;
   const size = Math.ceil(Math.sqrt(maxParticleAmount));
 
-  return [size, size];
+  return [size, size * dataPixelsCount];
 })();
 
 // TODO: next steps
@@ -53,12 +66,44 @@ const [width, height] = (() => {
 
 function fillEmptyParticles(width: number, height: number) {
   const data = new Float32Array(width * height * 4);
+  const thirdHeight = Math.floor(height / dataPixelsCount);
 
-  for (let i = 0; i < data.length; i += 4) {
-    data[i] = 0; // x
-    data[i + 1] = 0; // y
-    data[i + 2] = 0; // z
-    data[i + 3] = -1; // age
+  // fill the first third with position and age data
+  for (let y = 0; y < thirdHeight; y++) {
+    for (let x = 0; x < width; x++) {
+      const stride = (y * width + x) * 4;
+
+      data[stride] = 0; // position.x
+      data[stride + 1] = 0; // position.y
+      data[stride + 2] = 0; // position.z
+      data[stride + 3] = -1; // particle age
+    }
+  }
+
+  // fill the second third with velocity and max age data
+  for (let y = thirdHeight; y < 2 * thirdHeight; y++) {
+    for (let x = 0; x < width; x++) {
+      const stride = (y * width + x) * 4;
+
+      // FIXME: -2 for debugging purposes
+      data[stride] = -2; // velocity.x
+      data[stride + 1] = -2; // velocity.y
+      data[stride + 2] = -2; // velocity.z
+      data[stride + 3] = -2; // particle max age
+    }
+  }
+
+  // fill the last third with acceleration and particle type data
+  for (let y = 2 * thirdHeight; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const stride = (y * width + x) * 4;
+
+      // FIXME: 3 for debugging purposes
+      data[stride] = 3; // acceleration.x
+      data[stride + 1] = 3; // acceleration.y
+      data[stride + 2] = 3; // acceleration.z
+      data[stride + 3] = 3; // particle type
+    }
   }
 
   return data;
@@ -67,11 +112,13 @@ function fillEmptyParticles(width: number, height: number) {
 function fillEmptyEmitters(width: number, height: number) {
   const data = new Float32Array(width * height * 4);
 
-  for (let i = 0; i < data.length; i += 4) {
-    data[i] = 0; // x
-    data[i + 1] = 0; // y
-    data[i + 2] = 0; // z
-    data[i + 3] = 0; // particle id
+  for (let i = 0; i < data.length / 4; i++) {
+    const stride = i * 4;
+
+    data[stride] = 0; // position.x
+    data[stride + 1] = 0; // position.y
+    data[stride + 2] = 0; // position.z
+    data[stride + 3] = 0; // particle id
   }
 
   return data;
@@ -88,11 +135,13 @@ function createDataTexture(fill: (width: number, height: number) => Float32Array
 function clearEmitters(texture: DataTexture, startIndex: number) {
   const { data } = texture.image;
 
-  for (let i = startIndex; i < data.length; i += 4) {
-    data[i] = 0;
-    data[i + 1] = 0;
-    data[i + 2] = 0;
-    data[i + 3] = -1;
+  for (let i = startIndex; i < data.length / 4; i++) {
+    const stride = i * 4;
+
+    data[stride] = 0;
+    data[stride + 1] = 0;
+    data[stride + 2] = 0;
+    data[stride + 3] = -1;
   }
 }
 
@@ -132,7 +181,7 @@ class SimulationMaterial extends ShaderMaterial {
   constructor(particlesTexture: DataTexture, emittersTexture: DataTexture) {
     const uniforms = {
       uParticles: { value: particlesTexture },
-      uParticlesResolution: { value: [particlesTexture.image.width, particlesTexture.image.height] },
+      uParticlesWidth: { value: particlesTexture.image.width },
       uEmitters: { value: emittersTexture },
       uEmittersResolution: { value: [emittersTexture.image.width, emittersTexture.image.height] },
       uDelta: { value: 0 },
@@ -225,7 +274,7 @@ const simulationOutputDebugger: RenderTargetDebuggerCallback = (renderTarget, { 
 const Simulation = ({ width, height, emitterRefs: [emitter1Ref, emitter2Ref], onFrame }: SimulationProps) => {
   const scene = useMemo(() => new Scene(), []);
   const camera = useMemo(() => new OrthographicCamera(-1, 1, 1, -1, 1 / Math.pow(2, 53), 1), []);
-  const fboParams = useMemo(
+  const fboParams = useMemo<RenderTargetOptions>(
     () => ({
       minFilter: NearestFilter,
       magFilter: NearestFilter,
@@ -249,9 +298,12 @@ const Simulation = ({ width, height, emitterRefs: [emitter1Ref, emitter2Ref], on
     []
   );
   const freeEmitterIdRef = useRef<[id: number, length: number]>(
-    useMemo(() => [0, particlesTexture.image.data.length / 4], [particlesTexture])
+    useMemo(() => [0, particlesTexture.image.data.length / dataPixelsCount / 4], [particlesTexture])
   );
-  useMemo(() => (freeEmitterIdRef.current[1] = particlesTexture.image.data.length / 4), [particlesTexture]); // update length accordingly
+  useMemo(
+    () => (freeEmitterIdRef.current[1] = particlesTexture.image.data.length / dataPixelsCount / 4),
+    [particlesTexture]
+  ); // update length accordingly
   const lastParticleEmitTimeRef = useRef<number>(Number.POSITIVE_INFINITY);
   const emittersPrevEnabledRef = useRef<[enabled1: boolean | undefined, enabled2: boolean | undefined]>([
     undefined,
@@ -314,9 +366,9 @@ const Simulation = ({ width, height, emitterRefs: [emitter1Ref, emitter2Ref], on
 
     const [writeTarget, readTarget, initPhase] = targets.current;
 
-    // if (initPhase) {
-    //   debug.expose('Simulation initial input', simulationMaterialRef.current.uniforms.uParticles.value);
-    // }
+    if (initPhase) {
+      debug.expose('Simulation initial input', simulationMaterialRef.current.uniforms.uParticles.value);
+    }
 
     if (!initPhase) {
       simulationMaterialRef.current.uniforms.uParticles.value = readTarget.texture;
@@ -355,14 +407,15 @@ type SmokeFBOProps = {
 export const SmokeFBO = ({ emitterRefs }: SmokeFBOProps) => {
   const materialRef = useRef<ShaderMaterial>(null!);
   const particlePositions = useMemo(() => {
-    const length = width * height;
+    const thirdHeight = Math.floor(height / dataPixelsCount);
+    const length = width * thirdHeight;
     const particles = new Float32Array(length * 3);
 
     for (let i = 0; i < length; i++) {
-      const i3 = i * 3;
+      const stride = i * 3;
 
-      particles[i3 + 0] = (i % width) / height;
-      particles[i3 + 1] = i / width / height;
+      particles[stride + 0] = (i % width) / thirdHeight;
+      particles[stride + 1] = i / width / height;
     }
 
     return particles;

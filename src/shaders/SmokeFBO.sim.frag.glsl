@@ -1,5 +1,5 @@
 uniform sampler2D uParticles;
-uniform vec2 uParticlesResolution;
+uniform int uParticlesWidth;
 uniform sampler2D uEmitters;
 uniform vec2 uEmittersResolution;
 uniform float uDelta;
@@ -7,7 +7,13 @@ uniform float uMaxAge;
 varying vec2 vUv;
 
 void main() {
-  float id = (gl_FragCoord.x - 0.5) + (gl_FragCoord.y - 0.5) * uParticlesResolution.x;
+  if (vUv.y >= 1.0 / 3.0) {
+    gl_FragColor = texture2D(uParticles, vUv);
+
+    return;
+  }
+
+  float id = (gl_FragCoord.x - 0.5) + (gl_FragCoord.y - 0.5) * float(uParticlesWidth);
   vec4 data = texture2D(uParticles, vUv);
   vec3 pos = data.xyz;
   float age = data.w;
