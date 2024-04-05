@@ -16,16 +16,22 @@ import {
   Vector4,
   WebGLRenderTarget,
 } from 'three';
-import { MaterialNode, createPortal, extend, useFrame } from '@react-three/fiber';
+import { MaterialNode, createPortal, extend } from '@react-three/fiber';
 import { MutableRefObject, useMemo, useRef } from 'react';
 import { useFBO } from '@react-three/drei';
 import { symbolThickness } from './consts';
+import { useFrameWithDebugger } from './useFrameWithDebugger';
+import { RenderTargetDebuggerCallback, TextureDebuggerCallback } from './Debugger';
+import { useTextureDebugger } from './useTextureDebugger';
+import { useRenderTargetDebugger } from './useRenderTargetDebugger';
 
 // const minAge = 0.5;
 const maxAge = 2.0;
 const emitterCount = 2; // = emitterRefs.length (needs to be in-sync)
-const emitterParticlesMin = 5; // per-frame
-const emitterParticlesMax = 25; // per-frame
+// const emitterParticlesMin = 5; // per-frame
+// const emitterParticlesMax = 25; // per-frame
+const emitterParticlesMin = 1; // per-frame
+const emitterParticlesMax = 1; // per-frame
 
 const [width, height] = (() => {
   // we have an assumption that we will create that amount of particles per frame at 120 FPS
@@ -156,8 +162,65 @@ type SimulationProps = {
   onFrame: (texture: Texture) => void;
 };
 
-const positions = new Float32Array([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, -1, 0, 1, 1, 0, -1, 1, 0]);
-const uvs = new Float32Array([0, 1, 1, 1, 1, 0, 0, 1, 1, 0, 0, 0]);
+const positions = new Float32Array([
+  ...[-1, -1, 0], // bottom left
+  ...[1, -1, 0], // bottom right
+  ...[1, 1, 0], // top right
+  ...[-1, 1, 0], // top left
+]);
+const uvs = new Float32Array([
+  ...[0, 0], // bottom left
+  ...[1, 0], // bottom right
+  ...[1, 1], // top right
+  ...[0, 1], // top left
+]);
+const indices = new Uint16Array([
+  ...[0, 1, 2], // first triangle
+  ...[2, 3, 0], // second triangle
+]);
+
+let emitterSnapshotTaken = false;
+const emittersDebugger: TextureDebuggerCallback = (texture, { log, snapshot }) => {
+  let emitterCount = 0;
+
+  for (let i = 0; i < texture.image.data.length; i += 4) {
+    if (texture.image.data[i + 3] !== -1) {
+      emitterCount++;
+    }
+  }
+
+  log('Count', emitterCount);
+
+  if (emitterCount > 0 && !emitterSnapshotTaken) {
+    emitterSnapshotTaken = true;
+    snapshot(emitterParticlesMax, emitterCount);
+  }
+};
+
+const simulationInitialInputDebugger: TextureDebuggerCallback = (_, { snapshot }) => snapshot(width, height);
+
+const simulationOutputDebugger: RenderTargetDebuggerCallback = (renderTarget, { gl, log, frame, snapshot }) => {
+  const buffer = new Float32Array(renderTarget.width * renderTarget.height * 4);
+
+  gl.readRenderTargetPixels(renderTarget, 0, 0, renderTarget.width, renderTarget.height, buffer);
+
+  let aliveParticlesCount = 0;
+  let maxAge = 0;
+
+  for (let i = 0; i < buffer.length; i += 4) {
+    if (buffer[i + 3] !== -1) {
+      aliveParticlesCount++;
+      maxAge = Math.max(maxAge, buffer[i + 3]);
+    }
+  }
+  log('Buffer size', buffer.length / 4);
+  log('Alive particles', aliveParticlesCount);
+  log('Max age', maxAge);
+
+  if (frame === 0 || frame === 1 || frame === 2 || frame === 3 || frame === 4 || frame === 5 || frame === 6) {
+    snapshot(0, 0, renderTarget.width, renderTarget.height);
+  }
+};
 
 const Simulation = ({ width, height, emitterRefs: [emitter1Ref, emitter2Ref], onFrame }: SimulationProps) => {
   const scene = useMemo(() => new Scene(), []);
@@ -195,32 +258,37 @@ const Simulation = ({ width, height, emitterRefs: [emitter1Ref, emitter2Ref], on
     undefined,
   ]);
 
-  useFrame(({ gl, clock }, delta) => {
-    const elapsed = clock.elapsedTime;
+  useTextureDebugger('Emitters', emittersDebugger);
+  useTextureDebugger('Simulation initial input', simulationInitialInputDebugger);
+  useRenderTargetDebugger('Simulation output', simulationOutputDebugger);
 
-    if (
-      elapsed - lastParticleEmitTimeRef.current > maxAge &&
-      emitter1Ref.current.w === 0 &&
-      emitter2Ref.current.w === 0
-    ) {
+  useFrameWithDebugger(({ gl, clock, debug }, delta) => {
+    const elapsed = clock.elapsedTime;
+    const emitter1Enabled = emitter1Ref.current.w === 1;
+    const emitter2Enabled = emitter2Ref.current.w === 1;
+
+    // maxAge * 1.1 is a bit of a buffer to ensure that all particles are dead
+    if (elapsed - lastParticleEmitTimeRef.current > maxAge * 1.1 && !emitter1Enabled && !emitter2Enabled) {
       // nothing to animate anymore
       return;
-    } else if (emitter1Ref.current.w === 1 || emitter2Ref.current.w === 1) {
+    } else if (emitter1Enabled || emitter2Enabled) {
       lastParticleEmitTimeRef.current = elapsed;
     }
 
-    const [writeTarget, readTarget, initPhase] = targets.current;
+    const emitter1PrevEnabled = emittersPrevEnabledRef.current[0];
+    const emitter2PrevEnabled = emittersPrevEnabledRef.current[1];
 
-    const emitter1Enabled = emitter1Ref.current.w === 1;
-    const emitter2Enabled = emitter2Ref.current.w === 1;
+    emittersPrevEnabledRef.current[0] = emitter1Enabled;
+    emittersPrevEnabledRef.current[1] = emitter2Enabled;
 
     if (
       emitter1Enabled ||
       emitter2Enabled ||
-      emittersPrevEnabledRef.current[0] !== emitter1Enabled ||
-      emittersPrevEnabledRef.current[1] !== emitter2Enabled
+      emitter1PrevEnabled !== emitter1Enabled ||
+      emitter2PrevEnabled !== emitter2Enabled
     ) {
       let index = 0;
+
       index = fillEmitters(
         emittersTexture,
         freeEmitterIdRef,
@@ -238,11 +306,17 @@ const Simulation = ({ width, height, emitterRefs: [emitter1Ref, emitter2Ref], on
         MathUtils.randInt(emitterParticlesMin, emitterParticlesMax)
       );
       clearEmitters(emittersTexture, index);
+
       emittersTexture.needsUpdate = true;
+
+      // debug.expose('Emitters', emittersTexture);
     }
 
-    emittersPrevEnabledRef.current[0] = emitter1Enabled;
-    emittersPrevEnabledRef.current[1] = emitter2Enabled;
+    const [writeTarget, readTarget, initPhase] = targets.current;
+
+    // if (initPhase) {
+    //   debug.expose('Simulation initial input', simulationMaterialRef.current.uniforms.uPositions.value);
+    // }
 
     if (!initPhase) {
       simulationMaterialRef.current.uniforms.uPositions.value = readTarget.texture;
@@ -256,6 +330,8 @@ const Simulation = ({ width, height, emitterRefs: [emitter1Ref, emitter2Ref], on
 
     onFrame(writeTarget.texture);
 
+    debug.expose('Simulation output', writeTarget);
+
     targets.current = [readTarget, writeTarget];
   });
 
@@ -263,6 +339,7 @@ const Simulation = ({ width, height, emitterRefs: [emitter1Ref, emitter2Ref], on
     <mesh>
       <simulationMaterial ref={simulationMaterialRef} args={[positionsTexture, emittersTexture]} />
       <bufferGeometry>
+        <bufferAttribute attach="index" array={indices} count={indices.length} />
         <bufferAttribute attach="attributes-position" count={positions.length / 3} array={positions} itemSize={3} />
         <bufferAttribute attach="attributes-uv" count={uvs.length / 2} array={uvs} itemSize={2} />
       </bufferGeometry>

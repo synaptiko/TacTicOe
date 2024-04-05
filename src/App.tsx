@@ -9,6 +9,7 @@ import { Symbols } from './Symbols';
 import { Lasers } from './Lasers';
 import { BlendFunction, KernelSize } from 'postprocessing';
 import { Mesh } from 'three';
+import { Debugger } from './Debugger';
 
 const isDevelopmentMode = import.meta.env.MODE === 'development';
 const enableAllEffects = !isDevelopmentMode;
@@ -58,69 +59,77 @@ function App() {
   }
 
   return (
-    <div id="canvas-container">
-      <Canvas camera={{ fov: 30, near: 0.1, far: 1000, up: [0, 0, 1], position: [8.5, 8.5, 7.5] }}>
-        <Suspense fallback={null}>
-          {/* TODO: improve fog, make it denser at the ground level (see https://github.com/mrdoob/three.js/blob/master/examples/webgpu_custom_fog.html) */}
-          <fogExp2 attach="fog" color={background} density={0.06} />
-          <color attach="background" args={[background]} />
-          {isDevelopmentMode && <OrbitControls />}
-          <directionalLight color="#ffedf8" intensity={1.25} position={[50, 35, 100]} />
-          <Symbols activePlayer={isX ? 'x' : 'o'} xSymbolRef={xSymbolRef} oSymbolRef={oSymbolRef} />
-          {times(7, (x: number) =>
-            times(7, (y: number) => (
-              <Cell key={`${x}:${y}`} x={x} y={y} player={playerPositions.get(`${x}:${y}`)} onClick={handleClick} />
-            ))
-          )}
-          {lastPosition && <Lasers player={lastPosition[0]} x={lastPosition[1]} y={lastPosition[2]} />}
-          <EffectComposer>
-            {/* TODO: consider adding also motion blur */}
-            {enableAllEffects ? (
-              <>
-                {/* TODO: looks like depth of field is making rendering very slow; consider removing it */}
-                {/* <DepthOfField
-                  focusDistance={0}
-                  focalLength={0.02}
-                  bokehScale={2}
-                  resolutionX={1024}
-                  resolutionY={1024}
-                /> */}
-                <GodRays
-                  sun={xSymbolRef}
-                  blendFunction={BlendFunction.SCREEN}
-                  samples={60}
-                  density={0.96 * 5}
-                  decay={0.9 / 1.5}
-                  weight={0.4 / 4}
-                  exposure={0.6 / 3}
-                  clampMax={2}
-                  kernelSize={KernelSize.HUGE}
-                  blur={true}
-                />
-                <GodRays
-                  sun={oSymbolRef}
-                  blendFunction={BlendFunction.SCREEN}
-                  samples={60}
-                  density={0.96 * 5}
-                  decay={0.9 / 1.5}
-                  weight={0.4 / 4}
-                  exposure={0.6 / 3}
-                  clampMax={2}
-                  kernelSize={KernelSize.HUGE}
-                  blur={true}
-                />
-              </>
-            ) : (
-              <></>
+    <Debugger isEnabled={isDevelopmentMode}>
+      <div id="canvas-container">
+        <Canvas camera={{ fov: 30, near: 0.1, far: 1000, up: [0, 0, 1], position: [8.5, 8.5, 7.5] }}>
+          <Suspense fallback={null}>
+            {/* TODO: improve fog, make it denser at the ground level (see https://github.com/mrdoob/three.js/blob/master/examples/webgpu_custom_fog.html) */}
+            <fogExp2 attach="fog" color={background} density={0.06} />
+            <color attach="background" args={[background]} />
+            {isDevelopmentMode && <OrbitControls />}
+            <directionalLight color="#ffedf8" intensity={1.25} position={[50, 35, 100]} />
+            <Symbols activePlayer={isX ? 'x' : 'o'} xSymbolRef={xSymbolRef} oSymbolRef={oSymbolRef} />
+            {times(7, (x: number) =>
+              times(7, (y: number) => (
+                <Cell key={`${x}:${y}`} x={x} y={y} player={playerPositions.get(`${x}:${y}`)} onClick={handleClick} />
+              ))
             )}
-            <Bloom luminanceThreshold={0} luminanceSmoothing={0.5} opacity={1} resolutionX={1024} resolutionY={1024} />
-            {enableAllEffects ? <ChromaticAberration modulationOffset={1 / 3} radialModulation /> : <></>}
-            <Vignette eskil={false} offset={0.25} darkness={0.5} />
-          </EffectComposer>
-          {isDevelopmentMode && <StatsGl />}
-        </Suspense>
-      </Canvas>
-    </div>
+            {lastPosition && <Lasers player={lastPosition[0]} x={lastPosition[1]} y={lastPosition[2]} />}
+            <EffectComposer>
+              {/* TODO: consider adding also motion blur */}
+              {enableAllEffects ? (
+                <>
+                  {/* TODO: looks like depth of field is making rendering very slow; consider removing it */}
+                  {/* <DepthOfField
+                    focusDistance={0}
+                    focalLength={0.02}
+                    bokehScale={2}
+                    resolutionX={1024}
+                    resolutionY={1024}
+                  /> */}
+                  <GodRays
+                    sun={xSymbolRef}
+                    blendFunction={BlendFunction.SCREEN}
+                    samples={60}
+                    density={0.96 * 5}
+                    decay={0.9 / 1.5}
+                    weight={0.4 / 4}
+                    exposure={0.6 / 3}
+                    clampMax={2}
+                    kernelSize={KernelSize.HUGE}
+                    blur={true}
+                  />
+                  <GodRays
+                    sun={oSymbolRef}
+                    blendFunction={BlendFunction.SCREEN}
+                    samples={60}
+                    density={0.96 * 5}
+                    decay={0.9 / 1.5}
+                    weight={0.4 / 4}
+                    exposure={0.6 / 3}
+                    clampMax={2}
+                    kernelSize={KernelSize.HUGE}
+                    blur={true}
+                  />
+                </>
+              ) : (
+                <></>
+              )}
+              <Bloom
+                luminanceThreshold={0}
+                luminanceSmoothing={0.5}
+                opacity={1}
+                resolutionX={1024}
+                resolutionY={1024}
+              />
+              {enableAllEffects ? <ChromaticAberration modulationOffset={1 / 3} radialModulation /> : <></>}
+              <Vignette eskil={false} offset={0.25} darkness={0.5} />
+            </EffectComposer>
+            {isDevelopmentMode && <StatsGl />}
+          </Suspense>
+        </Canvas>
+      </div>
+    </Debugger>
   );
 }
 

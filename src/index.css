@@ -7,3 +7,104 @@ body {
   width: 100vw;
   height: 100vh;
 }
+
+#debugger {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 500px;
+  z-index: 1;
+  background-color: rgba(255, 255, 255, 0.5);
+  padding: 10px;
+  border-bottom-left-radius: 5px;
+}
+
+#snapshots {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 100001;
+  background-color: rgba(255, 255, 255, 0.95);
+  overflow: auto;
+}
+
+form.hide-snapshots-button button[type='submit'] {
+  display: none;
+}
+
+#snapshots table {
+  border-collapse: collapse;
+  border: 1px solid black;
+  margin: auto;
+  cursor: default;
+}
+
+#snapshots table td {
+  padding: 0;
+}
+
+#snapshots table th {
+  padding: 5px;
+}
+
+#snapshots table td,
+#snapshots table th {
+  border: 1px solid black;
+}
+
+#snapshots .data-pixel {
+  font-size: xx-small;
+}
+
+#snapshots .data-pixel > div {
+  display: flex;
+  height: 50.5px;
+  width: 50.5px;
+  gap: 0.5px;
+  flex-wrap: wrap;
+  background-color: black;
+}
+
+#snapshots .data-pixel > div > div {
+  color: white;
+  display: flex;
+  height: 25px;
+  width: 25px;
+  justify-content: center;
+  align-items: center;
+  opacity: 0.75;
+}
+
+#snapshots .data-pixel > div > div:hover {
+  opacity: 1;
+}
+
+#snapshots-toolbar {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  padding: 10px;
+}
+
+#snapshots-info {
+  display: flex;
+  justify-content: center;
+  gap: 5px;
+  padding: 10px;
+  padding-top: 0;
+  font-size: smaller;
+}
+
+#snapshots-info span:not(:last-of-type) {
+  margin-right: 10px;
+}
+
+#snapshots-value {
+  display: flex;
+  justify-content: center;
+  padding: 10px;
+  padding-top: 0;
+  font-size: smaller;
+}

@@ -7,13 +7,13 @@ uniform float uMaxAge;
 varying vec2 vUv;
 
 void main() {
-  float id = floor(vUv.x * uPositionsResolution.x) + floor(vUv.y * uPositionsResolution.y) * uPositionsResolution.x;
+  float id = (gl_FragCoord.x - 0.5) + (gl_FragCoord.y - 0.5) * uPositionsResolution.x;
   vec4 data = texture2D(uPositions, vUv);
   vec3 pos = data.xyz;
   float age = data.w;
 
-  if (age > uMaxAge) {
-    gl_FragColor = vec4(pos, -1.0);
+  if (age >= uMaxAge) {
+    gl_FragColor = vec4(0, 0, 0, -1.0);
     return;
   } else if (age != -1.0) {
     // TODO: implement velocity from texture
