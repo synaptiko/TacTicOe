@@ -64,6 +64,7 @@ function App() {
         <Canvas camera={{ fov: 30, near: 0.1, far: 1000, up: [0, 0, 1], position: [8.5, 8.5, 7.5] }}>
           <Suspense fallback={null}>
             {/* TODO: improve fog, make it denser at the ground level (see https://github.com/mrdoob/three.js/blob/master/examples/webgpu_custom_fog.html) */}
+            {/* TODO: alternatively implement just screenspace-based gradient on cells' sides and symbols */}
             <fogExp2 attach="fog" color={background} density={0.06} />
             <color attach="background" args={[background]} />
             {isDevelopmentMode && <OrbitControls />}

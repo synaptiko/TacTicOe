@@ -1,17 +1,22 @@
 uniform sampler2D uParticles;
-uniform float uMaxAge;
 varying float vAge;
+varying float vMaxAge;
+
+float oneThird = 1.0 / 3.0;
 
 float mapRange(float value, float fromMin, float fromMax, float toMin, float toMax) {
-  return toMin + (value - fromMin) * (toMax - toMin) / (fromMax - fromMin);
+  return clamp(toMin + (value - fromMin) * (toMax - toMin) / (fromMax - fromMin), min(toMin, toMax), max(toMin, toMax));
 }
 
 void main() {
-  vec4 data = texture2D(uParticles, position.xy);
-  vec3 pos = data.xyz;
-  float age = data.w;
+  vec4 posAndAge = texture2D(uParticles, position.xy);
+  vec3 pos = posAndAge.xyz;
+  float age = posAndAge.w;
+  vec4 velAndMaxAge = texture2D(uParticles, position.xy + vec2(0.0, oneThird));
+  float maxAge = velAndMaxAge.w;
 
   vAge = age;
+  vMaxAge = maxAge;
 
   if (vAge == -1.0) {
     gl_Position = vec4(0.0, 0.0, 0.0, 0.0);
@@ -26,6 +31,6 @@ void main() {
 
   gl_Position = projectedPosition;
 
-  float size = pow(mapRange(age, 0.0, uMaxAge, 0.0, 1.0), 0.5) * 2500.0;
+  float size = mapRange(age, 0.0, vMaxAge, 0.33, 1.0) * 1500.0;
   gl_PointSize = size * (-1.0 / viewPosition.z);
 }

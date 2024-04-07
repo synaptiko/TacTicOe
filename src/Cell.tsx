@@ -1,6 +1,6 @@
 import { ThreeEvent } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
-import { Mesh, Vector4 } from 'three';
+import { Mesh, Vector3, Vector4 } from 'three';
 import gsap from 'gsap';
 import { CellMaterial, CellMaterialWrapper } from './CellMaterial';
 import { Player, PositionKey } from './types';
@@ -65,8 +65,14 @@ export function Cell({ x, y, player, onClick }: CellProps) {
     };
   }, [player]);
 
+  function handleClick(event: ThreeEvent<MouseEvent>) {
+    if (event.normal && event.normal.dot(new Vector3(0, 0, 1)) > 0.99) {
+      onClick(event, `${x}:${y}`, x, y);
+    }
+  }
+
   return (
-    <mesh ref={meshRef} position={[x - 3, y - 3, -16]} onClick={(event) => onClick(event, `${x}:${y}`, x, y)}>
+    <mesh ref={meshRef} position={[x - 3, y - 3, -16]} onClick={handleClick}>
       <boxGeometry args={[1, 1, 10]} />
       {/* TODO: suggestion from Engin, add similar "white noise" texture to cells to break the polished look a bit */}
       <CellMaterialWrapper
