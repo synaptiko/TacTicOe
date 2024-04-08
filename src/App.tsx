@@ -1,13 +1,14 @@
 import { Canvas, ThreeEvent } from '@react-three/fiber';
 import { times } from 'lodash';
 import { Suspense, useRef, useState } from 'react';
-import { Bloom, ChromaticAberration, EffectComposer, GodRays, Vignette } from '@react-three/postprocessing';
+import { Bloom, ChromaticAberration, EffectComposer, Vignette } from '@react-three/postprocessing';
 import { OrbitControls, StatsGl } from '@react-three/drei';
 import { Cell } from './Cell';
 import { Player, PositionKey } from './types';
 import { Symbols } from './Symbols';
 import { Lasers } from './Lasers';
-import { BlendFunction, KernelSize } from 'postprocessing';
+// import { BlendFunction, KernelSize } from 'postprocessing';
+// import { DepthOfField, GodRays } from '@react-three/postprocessing';
 import { Mesh } from 'three';
 import { Debugger } from './Debugger';
 
@@ -77,7 +78,7 @@ function App() {
             )}
             {lastPosition && <Lasers player={lastPosition[0]} x={lastPosition[1]} y={lastPosition[2]} />}
             <EffectComposer>
-              {/* TODO: consider adding also motion blur */}
+              {/* TODO: consider adding motion blur */}
               {enableAllEffects ? (
                 <>
                   {/* TODO: looks like depth of field is making rendering very slow; consider removing it */}
@@ -88,7 +89,8 @@ function App() {
                     resolutionX={1024}
                     resolutionY={1024}
                   /> */}
-                  <GodRays
+                  {/* TODO: looks like GodRays covers smoke & sparks; will probably get rid of it or replace it with other custom "bloom-like" effect */}
+                  {/* <GodRays
                     sun={xSymbolRef}
                     blendFunction={BlendFunction.SCREEN}
                     samples={60}
@@ -111,7 +113,7 @@ function App() {
                     clampMax={2}
                     kernelSize={KernelSize.HUGE}
                     blur={true}
-                  />
+                  /> */}
                 </>
               ) : (
                 <></>

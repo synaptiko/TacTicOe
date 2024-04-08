@@ -4,7 +4,7 @@ import { Group, Object3D, Vector2, Vector4 } from 'three';
 import gsap from 'gsap';
 import { drawingDuration, symbolGap, symbolRadius, xSymbolScale } from './consts';
 import { Player } from './types';
-import { SmokeFBO } from './SmokeFBO';
+import { SparksAndSmoke } from './SparksAndSmoke';
 
 type LasersProps = {
   x: number;
@@ -197,7 +197,7 @@ export function Lasers({ x, y, player }: LasersProps) {
       <group ref={laser2Ref} visible={false}>
         <Laser x={x} y={y} player={player} />
       </group>
-      <SmokeFBO emitterRefs={[emitter1Ref, emitter2Ref]} />
+      <SparksAndSmoke player={player} emitterRefs={[emitter1Ref, emitter2Ref]} />
     </>
   );
 }

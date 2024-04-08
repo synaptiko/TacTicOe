@@ -7,6 +7,7 @@ varying vec2 vUv;
 
 float oneThird = 1.0 / 3.0;
 float twoThirds = 2.0 / 3.0;
+float damping = 0.725;
 
 int getParticleId(vec2 vUv) {
   if (vUv.y < oneThird) {
@@ -118,6 +119,38 @@ vec4 findEmitterAccAndType(int particleId, vec4 particleAccAndType) {
   return result;
 }
 
+void updateSparkParticle(vec3 position, vec3 velocity, float deltaTime, out vec3 newPosition, out vec3 newVelocity) {
+  newPosition = position + velocity * deltaTime;
+  newVelocity = velocity;
+
+  // check for potential intersection with the plane z = 0
+  if (position.z > 0.0 && newPosition.z <= 0.0) {
+    // calculate time to hit the plane
+    float timeToHit = -position.z / velocity.z;
+
+    // calculate exact hit position
+    vec3 hitPosition = position + velocity * timeToHit;
+
+    // check if hitPosition is within the bounds of the square
+    bool withinBounds = hitPosition.x >= -3.5 && hitPosition.x <= 3.5 &&
+                        hitPosition.y >= -3.5 && hitPosition.y <= 3.5;
+
+    if (withinBounds) {
+      // reflect velocity
+      newVelocity.z = -velocity.z;
+
+      // apply damping
+      newVelocity *= damping;
+
+      // calculate remaining time after collision
+      float remainingTime = deltaTime - timeToHit;
+
+      // update position based on the remaining time
+      newPosition = hitPosition + newVelocity * remainingTime;
+    }
+  }
+}
+
 void main() {
   vec4 posAndAge = getParticlePosAndAge(vUv);
   vec4 velAndMaxAge = getParticleVelAndMaxAge(vUv);
@@ -133,10 +166,20 @@ void main() {
     } else if (age >= maxAge) {
       gl_FragColor = vec4(0, 0, 0, -1.0);
     } else {
+      vec4 accAndType = getParticleAccAndType(vUv);
+      float type = accAndType.w;
       vec3 pos = posAndAge.xyz;
       vec3 vel = velAndMaxAge.xyz;
 
-      gl_FragColor = vec4(pos + vel * uDelta, age + uDelta);
+      if (type > 1.0) {
+        vec3 updatedPos, updatedVel;
+
+        updateSparkParticle(pos, vel, uDelta, updatedPos, updatedVel);
+
+        gl_FragColor = vec4(updatedPos, age + uDelta);
+      } else {
+        gl_FragColor = vec4(pos + vel * uDelta, age + uDelta);
+      }
     }
   } else if (vUv.y < twoThirds) {
     if (age == -1.0) {
@@ -148,8 +191,18 @@ void main() {
       float maxAge = velAndMaxAge.w;
       vec4 accAndType = getParticleAccAndType(vUv);
       vec3 acc = accAndType.xyz;
+      float type = accAndType.w;
 
-      gl_FragColor = vec4(vel + acc * uDelta, maxAge);
+      if (type > 1.0) {
+        vec3 pos = posAndAge.xyz;
+        vec3 updatedPos, updatedVel;
+
+        updateSparkParticle(pos, vel, uDelta, updatedPos, updatedVel);
+
+        gl_FragColor = vec4(updatedVel + acc * uDelta, maxAge);
+      } else {
+        gl_FragColor = vec4(vel + acc * uDelta, maxAge);
+      }
     }
   } else {
     vec4 accAndType = getParticleAccAndType(vUv);

@@ -41,7 +41,7 @@ void main() {
   if (vType == 1) {
     size = mapRange(age, 0.0, vMaxAge, 0.33, 1.0) * 1500.0;
   } else {
-    size = 75.0;
+    size = 33.0;
   }
 
   gl_PointSize = size * (-1.0 / viewPosition.z);

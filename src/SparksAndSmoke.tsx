@@ -1,7 +1,7 @@
-import vertexShader from './shaders/SmokeFBO.vert.glsl?raw';
-import fragmentShader from './shaders/SmokeFBO.frag.glsl?raw';
-import simulationVertexShader from './shaders/SmokeFBO.sim.vert.glsl?raw';
-import simulationFragmentShader from './shaders/SmokeFBO.sim.frag.glsl?raw';
+import vertexShader from './shaders/SparksAndSmoke.vert.glsl?raw';
+import fragmentShader from './shaders/SparksAndSmoke.frag.glsl?raw';
+import simulationVertexShader from './shaders/SparksAndSmoke.sim.vert.glsl?raw';
+import simulationFragmentShader from './shaders/SparksAndSmoke.sim.frag.glsl?raw';
 import {
   AdditiveBlending,
   DataTexture,
@@ -26,31 +26,26 @@ import { useFrameWithDebugger } from './useFrameWithDebugger';
 import { RenderTargetDebuggerCallback, TextureDebuggerCallback } from './Debugger';
 import { useTextureDebugger } from './useTextureDebugger';
 import { useRenderTargetDebugger } from './useRenderTargetDebugger';
+import { Player } from './types';
 
 // TODO: next steps
-// 1. add sparks with gravity
-// 2. integrate curl noise to smoke particle
-// 3. create proper particle texture with some noise and light/shadows
-// 4. refactor per-frame-definition of particles amount to be adaptive to current FPS instead; we will need to define some acceptable range like 30-120 FPS and implement different way to get emitter's positions with interpolation based on time variable to not create "clumps" of particles
-// 5. fix remaining TODOs in this file
-// 6. rename the file into SparksAndSmoke.tsx
-// 7. fix particles' scale (responsiveness related)
+// 1. separate simulation out of this file
+// 2. fix particles' scale (responsiveness related)
+// 3. refactor per-frame-definition of particles amount to be adaptive to current FPS instead; we will need to define some acceptable range like 30-120 FPS and implement different way to get emitter's positions with interpolation based on time variable to not create "clumps" of particles
+//    - I guess I could render the "simulation frame" multiple times per regular frame
+// 4. clean-up the code & comments once everything works (e.g. remove debugging-related code)
 
 const minAge = 0.5;
 const maxAge = 2.5;
-// const minAge = 0.5;
-// const maxAge = 0.5;
 const emitterCount = 2; // = emitterRefs.length (needs to be in-sync)
-const emitterParticlesMin = 15; // per-frame
-const emitterParticlesMax = 25; // per-frame
-const smokeVsSparkRatio = 0.5; // 50% smoke, 50% spark
-// const emitterParticlesMin = 1; // per-frame
-// const emitterParticlesMax = 1; // per-frame
+const emitterParticlesMin = 20; // per-frame
+const emitterParticlesMax = 40; // per-frame
+const smokeVsSparkRatio = 0.5; // 50% smoke, 50% sparks
 
-// We use the following structure for particles in DataTexture:
+// Note: We use the following structure for particles in DataTexture:
 // 1st pixel = position (x, y, z) and age (or id for emitters)
 // 2nd pixel = velocity (x, y, z) and max age
-// 3rd pixel = acceleration (x, y, z) and particle type (1 = smoke, 2 = spark)
+// 3rd pixel = acceleration (x, y, z) and particle type (1 = smoke, 2 = red spark, 3 = blue spark)
 
 // The layout of these pixels is as follows:
 // 1/3 on v coordinate = 1st pixel
@@ -195,18 +190,32 @@ function fillEmitters(
   emitter: Vector4,
   startIndex: number,
   spread: number,
-  amount: number
+  amount: number,
+  playerRef: MutableRefObject<Player>
 ) {
   const length = texture.image.data.length;
   const oneThirdIndex = length / 3;
   const twoThirdsIndex = 2 * oneThirdIndex;
 
   for (let i = 0; i < amount; i++) {
+    const isSmokeParticle = Math.random() <= smokeVsSparkRatio;
     const position = new Vector3(
       emitter.x + Math.random() * spread - spread / 2,
       emitter.y + Math.random() * spread - spread / 2,
       emitter.z
     );
+    const position2center = position.clone().sub(emitter);
+    const velocity = new Vector3(0, 0, 1); // by default go directly up
+
+    if (position2center.length() > 0.01) {
+      // if out of emitter's center then go to the side
+      const axis = position2center.clone().normalize().cross(velocity);
+      const angle = MathUtils.randFloat(-(isSmokeParticle ? Math.PI / 9 : Math.PI / 5), 0.0);
+
+      velocity.applyAxisAngle(axis, angle);
+    }
+
+    velocity.multiplyScalar(MathUtils.randFloat(1.5, 2.5));
 
     // position and id
     texture.image.data[startIndex + 0] = position.x;
@@ -214,13 +223,13 @@ function fillEmitters(
     texture.image.data[startIndex + 2] = position.z;
     texture.image.data[startIndex + 3] = getFreeId(freeEmitterIdRef);
 
-    if (Math.random() <= smokeVsSparkRatio) {
+    if (isSmokeParticle) {
       // smoke particle
 
       // velocity and max age
-      texture.image.data[oneThirdIndex + startIndex + 0] = MathUtils.randFloatSpread(0.5);
-      texture.image.data[oneThirdIndex + startIndex + 1] = MathUtils.randFloatSpread(0.5);
-      texture.image.data[oneThirdIndex + startIndex + 2] = MathUtils.randFloat(1.5, 2.5);
+      texture.image.data[oneThirdIndex + startIndex + 0] = velocity.x;
+      texture.image.data[oneThirdIndex + startIndex + 1] = velocity.y;
+      texture.image.data[oneThirdIndex + startIndex + 2] = velocity.z;
       texture.image.data[oneThirdIndex + startIndex + 3] = MathUtils.randFloat(minAge, maxAge);
 
       // acceleration and particle type
@@ -232,20 +241,16 @@ function fillEmitters(
       // spark particle
 
       // velocity and max age
-      // TODO: calculate proper vector for velocity based on position
-      // TODO: make sparks faster
-      texture.image.data[oneThirdIndex + startIndex + 0] = MathUtils.randFloatSpread(1.5);
-      texture.image.data[oneThirdIndex + startIndex + 1] = MathUtils.randFloatSpread(1.5);
-      texture.image.data[oneThirdIndex + startIndex + 2] = MathUtils.randFloat(2.5, 3.5);
-      texture.image.data[oneThirdIndex + startIndex + 3] = MathUtils.randFloat(minAge, maxAge) * 0.5;
+      texture.image.data[oneThirdIndex + startIndex + 0] = velocity.x;
+      texture.image.data[oneThirdIndex + startIndex + 1] = velocity.y;
+      texture.image.data[oneThirdIndex + startIndex + 2] = velocity.z;
+      texture.image.data[oneThirdIndex + startIndex + 3] = MathUtils.randFloat(minAge, maxAge) * 0.66;
 
       // acceleration and particle type
-      // TODO: make gravity a bit stronger
-      texture.image.data[twoThirdsIndex + startIndex + 0] = MathUtils.randFloatSpread(0.25);
-      texture.image.data[twoThirdsIndex + startIndex + 1] = MathUtils.randFloatSpread(0.25);
-      texture.image.data[twoThirdsIndex + startIndex + 2] = MathUtils.randFloat(-0.5, -1.5);
-      // TODO: encode player into type and have two colors of sparks (blue & red)
-      texture.image.data[twoThirdsIndex + startIndex + 3] = 2; // spark
+      texture.image.data[twoThirdsIndex + startIndex + 0] = 0;
+      texture.image.data[twoThirdsIndex + startIndex + 1] = 0;
+      texture.image.data[twoThirdsIndex + startIndex + 2] = MathUtils.randFloat(-6.5, -7.5);
+      texture.image.data[twoThirdsIndex + startIndex + 3] = playerRef.current === 'x' ? 2 : 3; // red or blue spark
     }
 
     startIndex += 4;
@@ -289,29 +294,21 @@ declare module '@react-three/fiber' {
 }
 
 type SimulationProps = {
+  player: Player;
   emitterRefs: [emitter1Ref: MutableRefObject<Vector4>, emitter2Ref: MutableRefObject<Vector4>];
   onFrame: (texture: Texture) => void;
 };
 
 // Note: using a single triangle for particles rendering (inspired by FullscreenTriangle from @react-three/drei)
 const positions = new Float32Array([
-  -1,
-  -1,
-  0, // bottom left corner
-  3,
-  -1,
-  0, // far right corner
-  -1,
-  3,
-  0, // far top corner
+  ...[-1, -1, 0], // bottom left corner
+  ...[3, -1, 0], // far right corner
+  ...[-1, 3, 0], // far top corner
 ]);
 const uvs = new Float32Array([
-  0,
-  0, // UV for bottom left
-  2,
-  0, // UV for far right
-  0,
-  2, // UV for far top
+  ...[0, 0], // UV for bottom left
+  ...[2, 0], // UV for far right
+  ...[0, 2], // UV for far top
 ]);
 
 let emitterSnapshotTaken = false;
@@ -358,7 +355,7 @@ const simulationOutputDebugger: RenderTargetDebuggerCallback = (renderTarget, { 
   }
 };
 
-const Simulation = ({ emitterRefs: [emitter1Ref, emitter2Ref], onFrame }: SimulationProps) => {
+const Simulation = ({ player, emitterRefs: [emitter1Ref, emitter2Ref], onFrame }: SimulationProps) => {
   const scene = useMemo(() => new Scene(), []);
   const camera = useMemo(() => new OrthographicCamera(-1, 1, 1, -1, 1 / Math.pow(2, 53), 1), []);
   const fboParams = useMemo<RenderTargetOptions>(
@@ -402,6 +399,8 @@ const Simulation = ({ emitterRefs: [emitter1Ref, emitter2Ref], onFrame }: Simula
     undefined,
     undefined,
   ]);
+  const playerRef = useRef<Player>(player);
+  useMemo(() => (playerRef.current = player), [player]);
 
   useTextureDebugger('Emitters', emittersDebugger);
   useTextureDebugger('Simulation initial input', simulationInitialInputDebugger);
@@ -441,7 +440,8 @@ const Simulation = ({ emitterRefs: [emitter1Ref, emitter2Ref], onFrame }: Simula
           emitter1Ref.current,
           index,
           symbolThickness,
-          MathUtils.randInt(emitterParticlesMin, emitterParticlesMax)
+          MathUtils.randInt(emitterParticlesMin, emitterParticlesMax),
+          playerRef
         );
       }
 
@@ -452,7 +452,8 @@ const Simulation = ({ emitterRefs: [emitter1Ref, emitter2Ref], onFrame }: Simula
           emitter2Ref.current,
           index,
           symbolThickness,
-          MathUtils.randInt(emitterParticlesMin, emitterParticlesMax)
+          MathUtils.randInt(emitterParticlesMin, emitterParticlesMax),
+          playerRef
         );
       }
 
@@ -498,11 +499,12 @@ const Simulation = ({ emitterRefs: [emitter1Ref, emitter2Ref], onFrame }: Simula
   );
 };
 
-type SmokeFBOProps = {
+type SparksAndSmokeProps = {
+  player: Player;
   emitterRefs: SimulationProps['emitterRefs'];
 };
 
-export const SmokeFBO = ({ emitterRefs }: SmokeFBOProps) => {
+export const SparksAndSmoke = ({ player, emitterRefs }: SparksAndSmokeProps) => {
   const materialRef = useRef<ShaderMaterial>(null!);
   const particlePositions = useMemo(() => {
     const thirdHeight = Math.floor(particlesTextureHeight / dataPixelsCount);
@@ -531,7 +533,7 @@ export const SmokeFBO = ({ emitterRefs }: SmokeFBOProps) => {
 
   return (
     <>
-      <Simulation emitterRefs={emitterRefs} onFrame={handleFrame} />
+      <Simulation player={player} emitterRefs={emitterRefs} onFrame={handleFrame} />
       <points>
         <bufferGeometry>
           <bufferAttribute
