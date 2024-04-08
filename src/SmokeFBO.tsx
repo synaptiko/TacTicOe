@@ -14,6 +14,7 @@ import {
   Scene,
   ShaderMaterial,
   Texture,
+  Vector3,
   Vector4,
   WebGLRenderTarget,
 } from 'three';
@@ -42,6 +43,7 @@ const maxAge = 2.5;
 const emitterCount = 2; // = emitterRefs.length (needs to be in-sync)
 const emitterParticlesMin = 15; // per-frame
 const emitterParticlesMax = 25; // per-frame
+const smokeVsSparkRatio = 0.5; // 50% smoke, 50% spark
 // const emitterParticlesMin = 1; // per-frame
 // const emitterParticlesMax = 1; // per-frame
 
@@ -49,7 +51,7 @@ const emitterParticlesMax = 25; // per-frame
 // 1st pixel = position (x, y, z) and age (or id for emitters)
 // 2nd pixel = velocity (x, y, z) and max age
 // 3rd pixel = acceleration (x, y, z) and particle type (1 = smoke, 2 = spark)
-//
+
 // The layout of these pixels is as follows:
 // 1/3 on v coordinate = 1st pixel
 // 2/3 on v coordinate = 2nd pixel
@@ -200,23 +202,51 @@ function fillEmitters(
   const twoThirdsIndex = 2 * oneThirdIndex;
 
   for (let i = 0; i < amount; i++) {
+    const position = new Vector3(
+      emitter.x + Math.random() * spread - spread / 2,
+      emitter.y + Math.random() * spread - spread / 2,
+      emitter.z
+    );
+
     // position and id
-    texture.image.data[startIndex + 0] = emitter.x + Math.random() * spread - spread / 2;
-    texture.image.data[startIndex + 1] = emitter.y + Math.random() * spread - spread / 2;
-    texture.image.data[startIndex + 2] = emitter.z;
+    texture.image.data[startIndex + 0] = position.x;
+    texture.image.data[startIndex + 1] = position.y;
+    texture.image.data[startIndex + 2] = position.z;
     texture.image.data[startIndex + 3] = getFreeId(freeEmitterIdRef);
 
-    // velocity and max age
-    texture.image.data[oneThirdIndex + startIndex + 0] = MathUtils.randFloatSpread(0.5);
-    texture.image.data[oneThirdIndex + startIndex + 1] = MathUtils.randFloatSpread(0.5);
-    texture.image.data[oneThirdIndex + startIndex + 2] = MathUtils.randFloat(1.5, 2.5);
-    texture.image.data[oneThirdIndex + startIndex + 3] = MathUtils.randFloat(minAge, maxAge);
+    if (Math.random() <= smokeVsSparkRatio) {
+      // smoke particle
 
-    // acceleration and particle type
-    texture.image.data[twoThirdsIndex + startIndex + 0] = MathUtils.randFloatSpread(0.25);
-    texture.image.data[twoThirdsIndex + startIndex + 1] = MathUtils.randFloatSpread(0.25);
-    texture.image.data[twoThirdsIndex + startIndex + 2] = MathUtils.randFloat(-0.5, -1.5);
-    texture.image.data[twoThirdsIndex + startIndex + 3] = 1;
+      // velocity and max age
+      texture.image.data[oneThirdIndex + startIndex + 0] = MathUtils.randFloatSpread(0.5);
+      texture.image.data[oneThirdIndex + startIndex + 1] = MathUtils.randFloatSpread(0.5);
+      texture.image.data[oneThirdIndex + startIndex + 2] = MathUtils.randFloat(1.5, 2.5);
+      texture.image.data[oneThirdIndex + startIndex + 3] = MathUtils.randFloat(minAge, maxAge);
+
+      // acceleration and particle type
+      texture.image.data[twoThirdsIndex + startIndex + 0] = MathUtils.randFloatSpread(0.25);
+      texture.image.data[twoThirdsIndex + startIndex + 1] = MathUtils.randFloatSpread(0.25);
+      texture.image.data[twoThirdsIndex + startIndex + 2] = MathUtils.randFloat(-0.5, -1.5);
+      texture.image.data[twoThirdsIndex + startIndex + 3] = 1; // smoke
+    } else {
+      // spark particle
+
+      // velocity and max age
+      // TODO: calculate proper vector for velocity based on position
+      // TODO: make sparks faster
+      texture.image.data[oneThirdIndex + startIndex + 0] = MathUtils.randFloatSpread(1.5);
+      texture.image.data[oneThirdIndex + startIndex + 1] = MathUtils.randFloatSpread(1.5);
+      texture.image.data[oneThirdIndex + startIndex + 2] = MathUtils.randFloat(2.5, 3.5);
+      texture.image.data[oneThirdIndex + startIndex + 3] = MathUtils.randFloat(minAge, maxAge) * 0.5;
+
+      // acceleration and particle type
+      // TODO: make gravity a bit stronger
+      texture.image.data[twoThirdsIndex + startIndex + 0] = MathUtils.randFloatSpread(0.25);
+      texture.image.data[twoThirdsIndex + startIndex + 1] = MathUtils.randFloatSpread(0.25);
+      texture.image.data[twoThirdsIndex + startIndex + 2] = MathUtils.randFloat(-0.5, -1.5);
+      // TODO: encode player into type and have two colors of sparks (blue & red)
+      texture.image.data[twoThirdsIndex + startIndex + 3] = 2; // spark
+    }
 
     startIndex += 4;
   }
