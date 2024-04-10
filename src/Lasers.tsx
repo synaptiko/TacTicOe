@@ -5,6 +5,10 @@ import gsap from 'gsap';
 import { drawingDuration, symbolGap, symbolRadius, xSymbolScale } from './consts';
 import { Player } from './types';
 import { SparksAndSmoke } from './SparksAndSmoke';
+import { Howl } from 'howler';
+import laserSoundUrl from './sounds/laser.mp3?url';
+
+const laserSound = new Howl({ src: [laserSoundUrl], volume: 2.0 });
 
 type LasersProps = {
   x: number;
@@ -174,6 +178,7 @@ export function Lasers({ x, y, player }: LasersProps) {
           emitter2Ref.current.setXOffset(x - 3);
           emitter2Ref.current.setYOffset(y - 3);
           emitter2Ref.current.setW(1);
+          laserSound.play();
         },
         onComplete: () => {
           laser1Ref.current.visible = false;

@@ -43,13 +43,14 @@ document.addEventListener('keydown', function (event) {
 // - rotating to sides and you can go over edges
 
 function App() {
+  const [gameStarted, setGameStarted] = useState(false);
   const [playerPositions, setPlayerPositions] = useState(new Map<PositionKey, Player>());
   const [isX, setIsX] = useState(true);
   const [lastPosition, setLastPosition] = useState<[player: Player, x: number, y: number] | null>(null);
   const xSymbolRef = useRef<Mesh>(null!);
   const oSymbolRef = useRef<Mesh>(null!);
 
-  function handleClick(event: ThreeEvent<MouseEvent>, position: PositionKey, x: number, y: number) {
+  function handleCellClick(event: ThreeEvent<MouseEvent>, position: PositionKey, x: number, y: number) {
     event.stopPropagation();
 
     if (!playerPositions.has(position)) {
@@ -59,10 +60,17 @@ function App() {
     }
   }
 
+  function handleCanvasClick() {
+    setGameStarted(true);
+  }
+
   return (
     <Debugger isEnabled={isDevelopmentMode}>
       <div id="canvas-container">
-        <Canvas camera={{ fov: 30, near: 0.1, far: 1000, up: [0, 0, 1], position: [8.5, 8.5, 7.5] }}>
+        <Canvas
+          camera={{ fov: 30, near: 0.1, far: 1000, up: [0, 0, 1], position: [8.5, 8.5, 7.5] }}
+          onClick={handleCanvasClick}
+        >
           <Suspense fallback={null}>
             {/* TODO: improve fog, make it denser at the ground level (see https://github.com/mrdoob/three.js/blob/master/examples/webgpu_custom_fog.html) */}
             {/* TODO: alternatively implement just screenspace-based gradient on cells' sides and symbols */}
@@ -71,11 +79,18 @@ function App() {
             {isDevelopmentMode && <OrbitControls />}
             <directionalLight color="#ffedf8" intensity={1.25} position={[50, 35, 100]} />
             <Symbols activePlayer={isX ? 'x' : 'o'} xSymbolRef={xSymbolRef} oSymbolRef={oSymbolRef} />
-            {times(7, (x: number) =>
-              times(7, (y: number) => (
-                <Cell key={`${x}:${y}`} x={x} y={y} player={playerPositions.get(`${x}:${y}`)} onClick={handleClick} />
-              ))
-            )}
+            {gameStarted &&
+              times(7, (x: number) =>
+                times(7, (y: number) => (
+                  <Cell
+                    key={`${x}:${y}`}
+                    x={x}
+                    y={y}
+                    player={playerPositions.get(`${x}:${y}`)}
+                    onClick={handleCellClick}
+                  />
+                ))
+              )}
             {lastPosition && <Lasers player={lastPosition[0]} x={lastPosition[1]} y={lastPosition[2]} />}
             <EffectComposer>
               {/* TODO: consider adding motion blur */}

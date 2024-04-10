@@ -15,6 +15,10 @@ import {
   symbolThickness,
   xSymbolScale,
 } from './consts';
+import { Howl } from 'howler';
+import introSoundUrl from './sounds/intro.mp3?url';
+
+const introSound = new Howl({ src: [introSoundUrl], volume: 0.01 });
 
 type CellProps = {
   x: number;
@@ -23,12 +27,18 @@ type CellProps = {
   onClick: (event: ThreeEvent<MouseEvent>, position: PositionKey, x: number, y: number) => void;
 };
 
-const isDevelopmentMode = import.meta.env.MODE === 'development';
+const isDevelopmentMode = import.meta.env.MODE === 'development' && false;
 
 export function Cell({ x, y, player, onClick }: CellProps) {
   const meshRef = useRef<Mesh>(null!);
   const materialRef = useRef<CellMaterial>(null!);
   const uEdges = useMemo(() => new Vector4(x === 0 ? 0 : 1, y === 0 ? 0 : 1, x === 6 ? 0 : 1, y === 6 ? 0 : 1), [x, y]);
+
+  useEffect(() => {
+    setTimeout(() => {
+      introSound.play();
+    }, 300);
+  }, [x, y]);
 
   useEffect(() => {
     if (isDevelopmentMode) {
