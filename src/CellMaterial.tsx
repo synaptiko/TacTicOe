@@ -4,8 +4,9 @@ import vertexShader from './shaders/Cell.vert.glsl?raw';
 import vertexShaderUrl from './shaders/Cell.vert.glsl?url';
 import fragmentShader from './shaders/Cell.frag.glsl?raw';
 import fragmentShaderUrl from './shaders/Cell.frag.glsl?url';
-import { forwardRef, memo, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import invariant from 'tiny-invariant';
+import { forwardRef, memo, useRef } from 'react';
+import { setUniform } from './utils/setUniform';
+import { useHotReloadShaders } from './utils/useHotReloadShaders';
 
 type CellMaterialWrapperProps = {
   color: string;
@@ -25,33 +26,7 @@ type CellMaterialWrapperProps = {
 const CellMaterialDevelopmentWrapper = memo(
   forwardRef<CellMaterial, CellMaterialWrapperProps>((props, ref) => {
     const materialRef = useRef<CellMaterial>(null!);
-    const [shaders, setShaders] = useState<{ vertexShader?: string; fragmentShader?: string }>({});
-
-    useEffect(() => {
-      import.meta.hot?.on('glsl-update', async (data) => {
-        const url = data.url;
-
-        invariant(url === vertexShaderUrl || url === fragmentShaderUrl, 'Invalid shader URL');
-
-        const content = await (await fetch(url)).text();
-
-        if (url === vertexShaderUrl) {
-          setShaders((shaders) => ({
-            ...shaders,
-            vertexShader: content,
-          }));
-        } else if (url === fragmentShaderUrl) {
-          setShaders((shaders) => ({
-            ...shaders,
-            fragmentShader: content,
-          }));
-        }
-      });
-    }, []);
-
-    useLayoutEffect(() => {
-      materialRef.current.needsUpdate = true;
-    }, [shaders]);
+    const shaders = useHotReloadShaders(materialRef, vertexShaderUrl, fragmentShaderUrl);
 
     return (
       <cellMaterial
@@ -146,24 +121,17 @@ export class CellMaterial extends MeshStandardMaterial {
   }
 
   onBeforeCompile(parameters: WebGLProgramParametersWithUniforms) {
+    // TODO: somehow these vertex/fragmentShader parameters interfere with SymbolMaterial (if I move them below for loop, CellMaterial breaks)
+    parameters.vertexShader = this.#vertexShader ?? vertexShader;
+    parameters.fragmentShader = this.#fragmentShader ?? fragmentShader;
     for (const [key, { value }] of Object.entries(this.#uniforms)) {
       setUniform(parameters.uniforms, key, value);
     }
     this.#uniforms = parameters.uniforms;
-    parameters.vertexShader = this.#vertexShader ?? vertexShader;
-    parameters.fragmentShader = this.#fragmentShader ?? fragmentShader;
   }
 
   customProgramCacheKey(): string {
     return `${super.customProgramCacheKey()}-${this.#shaderVersion}`;
-  }
-}
-
-function setUniform(uniforms: WebGLProgramParametersWithUniforms['uniforms'], name: string, value: unknown) {
-  uniforms[name] = uniforms[name] ?? { value };
-
-  if (uniforms[name].value !== value) {
-    uniforms[name].value = value;
   }
 }
 

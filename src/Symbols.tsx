@@ -1,10 +1,11 @@
-import { MutableRefObject, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { MutableRefObject, useEffect, useMemo, useRef } from 'react';
 import { useGLTF } from '@react-three/drei';
-import { BufferGeometry, Group, Mesh, MeshStandardMaterial, WebGLProgramParametersWithUniforms } from 'three';
+import { BufferGeometry, Group, Mesh } from 'three';
 import gsap from 'gsap';
-import symbolsUrl from './symbols.glb?url';
+import symbolsUrl from './objects/symbols.glb?url';
 import { drawingDuration } from './consts';
 import { Player } from './types';
+import { SymbolMaterial, SymbolMaterialWrapper } from './SymbolMaterial';
 
 useGLTF.preload(symbolsUrl);
 
@@ -27,8 +28,8 @@ export function Symbols({ activePlayer, xSymbolRef, oSymbolRef }: SymbolsProps) 
   const xGeometry = 'geometry' in x && x.geometry instanceof BufferGeometry ? x.geometry : undefined;
   const oGeometry = 'geometry' in o && o.geometry instanceof BufferGeometry ? o.geometry : undefined;
   const groupRef = useRef<Group>(null!);
-  const xMaterialRef = useRef<MeshStandardMaterial>(null!);
-  const oMaterialRef = useRef<MeshStandardMaterial>(null!);
+  const xMaterialRef = useRef<SymbolMaterial>(null!);
+  const oMaterialRef = useRef<SymbolMaterial>(null!);
   const activePlayerRef = useRef(activePlayer);
 
   useMemo(() => (activePlayerRef.current = activePlayer), [activePlayer]);
@@ -54,26 +55,25 @@ export function Symbols({ activePlayer, xSymbolRef, oSymbolRef }: SymbolsProps) 
 
   useEffect(() => {
     if (isDevelopmentMode) {
-      xMaterialRef.current.emissiveIntensity = activePlayer === 'x' ? maxIntensity : 0;
-      oMaterialRef.current.emissiveIntensity = activePlayer === 'o' ? maxIntensity : 0;
+      xMaterialRef.current.uEmissiveIntensity = activePlayer === 'x' ? maxIntensity : 0;
+      oMaterialRef.current.uEmissiveIntensity = activePlayer === 'o' ? maxIntensity : 0;
       return;
     }
 
     const tween = gsap.fromTo(
       activePlayer === 'x' ? xMaterialRef.current : oMaterialRef.current,
       {
-        emissiveIntensity: 0,
+        uEmissiveIntensity: 0,
       },
       {
-        emissiveIntensity: maxIntensity,
+        uEmissiveIntensity: maxIntensity,
         duration: highlightDuration,
         delay: drawingDuration * 2,
         ease: 'power3.inOut',
       }
     );
 
-    // TODO: add slight pulse animation from base to higher intensity
-    // TODO: or maybe there could be a slight floating animation to make it more interesting?
+    // TODO: add slight pulse animation or flicker the intensity
 
     return () => {
       setTimeout(
@@ -88,11 +88,6 @@ export function Symbols({ activePlayer, xSymbolRef, oSymbolRef }: SymbolsProps) 
     };
   }, [activePlayer]);
 
-  useLayoutEffect(() => {
-    xMaterialRef.current.onBeforeCompile = onBeforeCompile;
-    oMaterialRef.current.onBeforeCompile = onBeforeCompile;
-  }, []);
-
   return (
     <group ref={groupRef} dispose={null} position={[0, 0, 4]}>
       <mesh
@@ -102,47 +97,25 @@ export function Symbols({ activePlayer, xSymbolRef, oSymbolRef }: SymbolsProps) 
         scale={16.5}
         position={[-2.8, -10, 0]}
       >
-        <meshStandardMaterial ref={xMaterialRef} color="#555" emissive="#E72929" emissiveIntensity={0} />
+        <SymbolMaterialWrapper
+          uPlayer={1}
+          uEmissiveIntensity={0}
+          uMaxIntensity={maxIntensity}
+          ref={xMaterialRef}
+          color="#555"
+          emissive="#E72929"
+        />
       </mesh>
       <mesh ref={oSymbolRef} geometry={oGeometry} rotation={[0, Math.PI / 2, 0]} scale={16.5} position={[-10, -2.8, 0]}>
-        <meshStandardMaterial ref={oMaterialRef} color="#555" emissive="#299CE7" emissiveIntensity={0} />
+        <SymbolMaterialWrapper
+          uPlayer={2}
+          uEmissiveIntensity={0}
+          uMaxIntensity={maxIntensity}
+          ref={oMaterialRef}
+          color="#555"
+          emissive="#299CE7"
+        />
       </mesh>
     </group>
   );
-}
-
-// FIXME: implement the same way I do for cell, with HMR support
-// TODO: add mMyUv as well and implement "LEDs" effect
-// TODO: I can use uv from Blender to drive intensity, instead of using normal
-function onBeforeCompile(shader: WebGLProgramParametersWithUniforms) {
-  shader.vertexShader = shader.vertexShader
-    .replace(
-      `varying vec3 vViewPosition;`,
-      `
-      varying vec3 vViewPosition;
-      varying vec3 vMyNormal;
-    `
-    )
-    .replace(
-      `}`,
-      `
-      vMyNormal = normal;
-    }`
-    );
-  shader.fragmentShader = shader.fragmentShader
-    .replace(
-      `vec3 outgoingLight = totalDiffuse + totalSpecular + totalEmissiveRadiance;`,
-      `
-    float intensity = (dot(normalize(vMyNormal), normalize(vec3(0, 0, 1))) > 0.99 ? 1.0 : 0.25);
-    totalDiffuse *= intensity * 5.0;
-    vec3 outgoingLight = (totalDiffuse + totalSpecular + totalEmissiveRadiance) * intensity;
-    `
-    )
-    .replace(
-      `#define STANDARD`,
-      `
-      #define STANDARD
-      varying vec3 vMyNormal;
-    `
-    );
 }

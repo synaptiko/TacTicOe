@@ -312,7 +312,6 @@ vec4 drawCell(vec4 diffuseColor) {
 
     if (uPlayer == 1) {
       newDiffuseColor.rgb = drawXSymbol(newDiffuseColor);
-      // newDiffuseColor.rgb = drawOSymbol(newDiffuseColor);
     } else if (uPlayer == 2) {
       newDiffuseColor.rgb = drawOSymbol(newDiffuseColor);
     }
