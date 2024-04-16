@@ -9,6 +9,7 @@ import {
   MouseEvent,
 } from 'react';
 import { Texture, Vector3, WebGLRenderTarget, WebGLRenderer } from 'three';
+import classes from './Debugger.module.css';
 
 type DebuggerProps = {
   isEnabled: boolean;
@@ -313,7 +314,7 @@ const DataPixelCell = ({ i, data }: DataPixelCellProps) => {
   const pixelData = data.slice(i * 4, i * 4 + 4);
 
   return (
-    <td className="data-pixel">
+    <td className={classes.dataPixel}>
       <div>
         {Array.from({ length: 4 }, (_, i) => (
           <div key={i} style={getStyleForValue(pixelData[i])} data-value={pixelData[i]}>
@@ -340,7 +341,7 @@ const SnapshotGrid = ({ snapshot: { width, height, data } }: SnapshotGridProps) 
 
   return (
     <>
-      <div id="snapshots-value">
+      <div className={classes.value}>
         <strong>Value:</strong>&nbsp;<span>{value}</span>
       </div>
       <table onMouseOver={handleMouseOver}>
@@ -387,8 +388,8 @@ const Snapshots = ({ children }: SnapshotsProps) => {
   return (
     <>
       {isUIShown && (
-        <div id="snapshots">
-          <div id="snapshots-toolbar">
+        <div className={classes.snapshots}>
+          <div className={classes.toolbar}>
             <button onClick={() => setIndex((i) => i - 1)} disabled={index === 0}>
               &lt;
             </button>
@@ -397,7 +398,7 @@ const Snapshots = ({ children }: SnapshotsProps) => {
               &gt;
             </button>
           </div>
-          <div id="snapshots-info">
+          <div className={classes.info}>
             <strong>Key:</strong>
             <span>{key}</span>
             <strong>Frame:</strong>
@@ -416,7 +417,7 @@ const Snapshots = ({ children }: SnapshotsProps) => {
           <SnapshotGrid snapshot={snapshot} />
         </div>
       )}
-      <form onSubmit={handleSubmit} className={snapshots.length === 0 ? 'hide-snapshots-button' : undefined}>
+      <form onSubmit={handleSubmit} className={snapshots.length === 0 ? classes.hideSnapshotsButton : undefined}>
         {children}
       </form>
     </>
@@ -446,7 +447,7 @@ export const Debugger = ({ isEnabled, children }: DebuggerProps) => {
   return (
     <DebuggerContext.Provider value={debug}>
       <Snapshots>
-        <div id="debugger" onMouseDown={handleMouseDown} onMouseUp={handleMouseUp}>
+        <div className={classes.debugger} onMouseDown={handleMouseDown} onMouseUp={handleMouseUp}>
           <strong>
             Debugger <SnapshotsButton />
           </strong>

@@ -1,14 +1,4 @@
-body {
-  padding: 0;
-  margin: 0;
-}
-
-#canvas-container {
-  width: 100vw;
-  height: 100vh;
-}
-
-#debugger {
+.debugger {
   position: absolute;
   top: 0;
   right: 0;
@@ -19,7 +9,11 @@ body {
   border-bottom-left-radius: 5px;
 }
 
-#snapshots {
+.hideSnapshotsButton button[type='submit'] {
+  display: none;
+}
+
+.snapshots {
   position: absolute;
   top: 0;
   left: 0;
@@ -30,35 +24,31 @@ body {
   overflow: auto;
 }
 
-form.hide-snapshots-button button[type='submit'] {
-  display: none;
-}
-
-#snapshots table {
+.snapshots table {
   border-collapse: collapse;
   border: 1px solid black;
   margin: auto;
   cursor: default;
 }
 
-#snapshots table td {
+.snapshots table td {
   padding: 0;
 }
 
-#snapshots table th {
+.snapshots table th {
   padding: 5px;
 }
 
-#snapshots table td,
-#snapshots table th {
+.snapshots table td,
+.snapshots table th {
   border: 1px solid black;
 }
 
-#snapshots .data-pixel {
+.dataPixel {
   font-size: xx-small;
 }
 
-#snapshots .data-pixel > div {
+.dataPixel > div {
   display: flex;
   height: 50.5px;
   width: 50.5px;
@@ -67,7 +57,7 @@ form.hide-snapshots-button button[type='submit'] {
   background-color: black;
 }
 
-#snapshots .data-pixel > div > div {
+.dataPixel > div > div {
   color: white;
   display: flex;
   height: 25px;
@@ -77,18 +67,18 @@ form.hide-snapshots-button button[type='submit'] {
   opacity: 0.75;
 }
 
-#snapshots .data-pixel > div > div:hover {
+.dataPixel > div > div:hover {
   opacity: 1;
 }
 
-#snapshots-toolbar {
+.toolbar {
   display: flex;
   justify-content: center;
   gap: 10px;
   padding: 10px;
 }
 
-#snapshots-info {
+.info {
   display: flex;
   justify-content: center;
   gap: 5px;
@@ -97,11 +87,11 @@ form.hide-snapshots-button button[type='submit'] {
   font-size: smaller;
 }
 
-#snapshots-info span:not(:last-of-type) {
+.info span:not(:last-of-type) {
   margin-right: 10px;
 }
 
-#snapshots-value {
+.value {
   display: flex;
   justify-content: center;
   padding: 10px;

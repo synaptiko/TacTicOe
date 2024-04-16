@@ -8,7 +8,7 @@ import { SparksAndSmoke } from './SparksAndSmoke';
 import { Howl } from 'howler';
 import laserSoundUrl from './sounds/laser.mp3?url';
 
-const laserSound = new Howl({ src: [laserSoundUrl], volume: 2.0 });
+const laserSound = new Howl({ src: [laserSoundUrl], volume: 10.0 }); // TODO: turn up volume in the mp3 file directly
 
 type LasersProps = {
   x: number;

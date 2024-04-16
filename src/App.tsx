@@ -1,16 +1,16 @@
 import { Canvas, ThreeEvent } from '@react-three/fiber';
 import { times } from 'lodash';
-import { Suspense, useRef, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { Bloom, ChromaticAberration, EffectComposer, Vignette } from '@react-three/postprocessing';
 import { OrbitControls, StatsGl } from '@react-three/drei';
 import { Cell } from './Cell';
 import { Player, PositionKey } from './types';
 import { Symbols } from './Symbols';
 import { Lasers } from './Lasers';
-// import { BlendFunction, KernelSize } from 'postprocessing';
-// import { DepthOfField, GodRays } from '@react-three/postprocessing';
 import { Mesh } from 'three';
 import { Debugger } from './Debugger';
+import { Menu } from './Menu';
+import classes from './App.module.css';
 
 const isDevelopmentMode = import.meta.env.MODE === 'development';
 const enableAllEffects = !isDevelopmentMode;
@@ -37,18 +37,38 @@ document.addEventListener('keydown', function (event) {
   }
 });
 
+// TODO: what to finish:
+// - add xstate and state machine for game states
+// - player selection screen (X or O)
+// - better "development" mode where I can enable/disabled specific features & animations (or switch to different states)
+// - winning condition
+// - game over screen in menu style (You win/lose! Play again?)
+// - winning animation
+// - credits screen
+// - quit screen (are you sure you want to quit? => "blue screen of death")
+
 // TODO: think about these ideas:
 // - rubic cube mechanics: rotating the row/column
 //   - maybe if you win, that row/column will rotate? what to do with diagonals then?
 // - rotating to sides and you can go over edges
 
 function App() {
+  const [menuOpened, setMenuOpened] = useState(true);
   const [gameStarted, setGameStarted] = useState(false);
   const [playerPositions, setPlayerPositions] = useState(new Map<PositionKey, Player>());
   const [isX, setIsX] = useState(true);
   const [lastPosition, setLastPosition] = useState<[player: Player, x: number, y: number] | null>(null);
   const xSymbolRef = useRef<Mesh>(null!);
   const oSymbolRef = useRef<Mesh>(null!);
+
+  useEffect(() => {
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape') {
+        // TODO: Toggle menu when game already started and menu is opened
+        setMenuOpened(true);
+      }
+    });
+  }, []);
 
   function handleCellClick(event: ThreeEvent<MouseEvent>, position: PositionKey, x: number, y: number) {
     event.stopPropagation();
@@ -60,17 +80,19 @@ function App() {
     }
   }
 
-  function handleCanvasClick() {
+  function handleNewGame() {
+    setMenuOpened(false);
     setGameStarted(true);
+  }
+
+  function handleResume() {
+    setMenuOpened(false);
   }
 
   return (
     <Debugger isEnabled={isDevelopmentMode}>
-      <div id="canvas-container">
-        <Canvas
-          camera={{ fov: 30, near: 0.1, far: 1000, up: [0, 0, 1], position: [8.5, 8.5, 7.5] }}
-          onClick={handleCanvasClick}
-        >
+      <div className={classes.canvasContainer}>
+        <Canvas camera={{ fov: 30, near: 0.1, far: 1000, up: [0, 0, 1], position: [8.5, 8.5, 7.5] }}>
           <Suspense fallback={null}>
             {/* TODO: improve fog, make it denser at the ground level (see https://github.com/mrdoob/three.js/blob/master/examples/webgpu_custom_fog.html) */}
             {/* TODO: alternatively implement just screenspace-based gradient on cells' sides and symbols */}
@@ -78,7 +100,7 @@ function App() {
             <color attach="background" args={[background]} />
             {isDevelopmentMode && <OrbitControls />}
             <directionalLight color="#ffedf8" intensity={1.25} position={[50, 35, 100]} />
-            <Symbols activePlayer={isX ? 'x' : 'o'} xSymbolRef={xSymbolRef} oSymbolRef={oSymbolRef} />
+            {gameStarted && <Symbols activePlayer={isX ? 'x' : 'o'} xSymbolRef={xSymbolRef} oSymbolRef={oSymbolRef} />}
             {gameStarted &&
               times(7, (x: number) =>
                 times(7, (y: number) => (
@@ -93,46 +115,6 @@ function App() {
               )}
             {lastPosition && <Lasers player={lastPosition[0]} x={lastPosition[1]} y={lastPosition[2]} />}
             <EffectComposer>
-              {/* TODO: consider adding motion blur */}
-              {enableAllEffects ? (
-                <>
-                  {/* TODO: looks like depth of field is making rendering very slow; consider removing it */}
-                  {/* <DepthOfField
-                    focusDistance={0}
-                    focalLength={0.02}
-                    bokehScale={2}
-                    resolutionX={1024}
-                    resolutionY={1024}
-                  /> */}
-                  {/* TODO: looks like GodRays covers smoke & sparks; will probably get rid of it or replace it with other custom "bloom-like" effect */}
-                  {/* <GodRays
-                    sun={xSymbolRef}
-                    blendFunction={BlendFunction.SCREEN}
-                    samples={60}
-                    density={0.96 * 5}
-                    decay={0.9 / 1.5}
-                    weight={0.4 / 4}
-                    exposure={0.6 / 3}
-                    clampMax={2}
-                    kernelSize={KernelSize.HUGE}
-                    blur={true}
-                  />
-                  <GodRays
-                    sun={oSymbolRef}
-                    blendFunction={BlendFunction.SCREEN}
-                    samples={60}
-                    density={0.96 * 5}
-                    decay={0.9 / 1.5}
-                    weight={0.4 / 4}
-                    exposure={0.6 / 3}
-                    clampMax={2}
-                    kernelSize={KernelSize.HUGE}
-                    blur={true}
-                  /> */}
-                </>
-              ) : (
-                <></>
-              )}
               <Bloom
                 luminanceThreshold={0}
                 luminanceSmoothing={0.5}
@@ -147,6 +129,7 @@ function App() {
           </Suspense>
         </Canvas>
       </div>
+      <Menu open={menuOpened} gameStarted={gameStarted} onNewGame={handleNewGame} onResume={handleResume} />
     </Debugger>
   );
 }

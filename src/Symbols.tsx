@@ -15,9 +15,7 @@ type SymbolsProps = {
   oSymbolRef: MutableRefObject<Mesh>;
 };
 
-const isDevelopmentMode = import.meta.env.MODE === 'development';
-
-const introDuration = 1; // seconds
+const introDuration = 0.75; // seconds
 const highlightDuration = 0.25; // seconds
 const maxIntensity = 20;
 
@@ -35,11 +33,6 @@ export function Symbols({ activePlayer, xSymbolRef, oSymbolRef }: SymbolsProps) 
   useMemo(() => (activePlayerRef.current = activePlayer), [activePlayer]);
 
   useEffect(() => {
-    if (isDevelopmentMode) {
-      groupRef.current.position.setZ(-1.33);
-      return;
-    }
-
     const tween = gsap.to(groupRef.current.position, {
       x: 0,
       y: 0,
@@ -54,12 +47,6 @@ export function Symbols({ activePlayer, xSymbolRef, oSymbolRef }: SymbolsProps) 
   }, []);
 
   useEffect(() => {
-    if (isDevelopmentMode) {
-      xMaterialRef.current.uEmissiveIntensity = activePlayer === 'x' ? maxIntensity : 0;
-      oMaterialRef.current.uEmissiveIntensity = activePlayer === 'o' ? maxIntensity : 0;
-      return;
-    }
-
     const tween = gsap.fromTo(
       activePlayer === 'x' ? xMaterialRef.current : oMaterialRef.current,
       {

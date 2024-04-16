@@ -8,8 +8,6 @@ import { setUniform } from './utils/setUniform';
 import { MaterialNode, extend } from '@react-three/fiber';
 import { useHotReloadShaders } from './utils/useHotReloadShaders';
 
-// TODO: implement "LEDs" effect (circular rows for O; for X along the edges)
-
 type SymbolMaterialWrapperProps = {
   color: string;
   emissive: string;

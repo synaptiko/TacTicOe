@@ -6,4 +6,9 @@ import glslHmr from './vite-plugin-glsl-hmr';
 export default defineConfig((config) => ({
   plugins: [glslHmr(), react()],
   base: config.mode === 'production' ? '/TacTicOe/' : '',
+  css: {
+    modules: {
+      localsConvention: 'camelCaseOnly',
+    },
+  },
 }));

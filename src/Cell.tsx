@@ -18,7 +18,7 @@ import {
 import { Howl } from 'howler';
 import introSoundUrl from './sounds/intro.mp3?url';
 
-const introSound = new Howl({ src: [introSoundUrl], volume: 0.01 });
+const introSound = new Howl({ src: [introSoundUrl] });
 
 type CellProps = {
   x: number;
@@ -35,10 +35,10 @@ export function Cell({ x, y, player, onClick }: CellProps) {
   const uEdges = useMemo(() => new Vector4(x === 0 ? 0 : 1, y === 0 ? 0 : 1, x === 6 ? 0 : 1, y === 6 ? 0 : 1), [x, y]);
 
   useEffect(() => {
-    setTimeout(() => {
-      introSound.play();
-    }, 300);
-  }, [x, y]);
+    if (isDevelopmentMode || x !== 0) return;
+
+    introSound.play();
+  }, [x]);
 
   useEffect(() => {
     if (isDevelopmentMode) {
@@ -50,7 +50,7 @@ export function Cell({ x, y, player, onClick }: CellProps) {
       x: x - 3,
       y: y - 3,
       z: -5,
-      duration: 1 + Math.min(x, y) / 10,
+      duration: 0.75 + Math.min(x, y) / 10,
       ease: 'power4.inOut',
     });
 
@@ -85,6 +85,7 @@ export function Cell({ x, y, player, onClick }: CellProps) {
     <mesh ref={meshRef} position={[x - 3, y - 3, -16]} onClick={handleClick}>
       <boxGeometry args={[1, 1, 10]} />
       {/* TODO: suggestion from Engin, add similar "white noise" texture to cells to break the polished look a bit */}
+      {/* TODO: use this texture? https://ambientcg.com/view?id=Paper006 */}
       <CellMaterialWrapper
         ref={materialRef}
         color="#FFF"
