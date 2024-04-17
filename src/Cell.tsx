@@ -17,6 +17,7 @@ import {
 } from './consts';
 import { Howl } from 'howler';
 import introSoundUrl from './sounds/intro.mp3?url';
+import { useGameMachine } from './useRootMachine';
 
 const introSound = new Howl({ src: [introSoundUrl] });
 
@@ -27,37 +28,32 @@ type CellProps = {
   onClick: (event: ThreeEvent<MouseEvent>, position: PositionKey, x: number, y: number) => void;
 };
 
-const isDevelopmentMode = import.meta.env.MODE === 'development' && false;
-
 export function Cell({ x, y, player, onClick }: CellProps) {
   const meshRef = useRef<Mesh>(null!);
   const materialRef = useRef<CellMaterial>(null!);
   const uEdges = useMemo(() => new Vector4(x === 0 ? 0 : 1, y === 0 ? 0 : 1, x === 6 ? 0 : 1, y === 6 ? 0 : 1), [x, y]);
+  const [, sendToGame] = useGameMachine();
 
   useEffect(() => {
-    if (isDevelopmentMode || x !== 0) return;
-
     introSound.play();
   }, [x]);
 
   useEffect(() => {
-    if (isDevelopmentMode) {
-      meshRef.current.position.setZ(-5);
-      return;
-    }
-
     const tween = gsap.to(meshRef.current.position, {
       x: x - 3,
       y: y - 3,
       z: -5,
       duration: 0.75 + Math.min(x, y) / 10,
       ease: 'power4.inOut',
+      onComplete: () => {
+        sendToGame({ type: 'transitionEnd' });
+      },
     });
 
     return () => {
       tween.kill();
     };
-  }, [x, y]);
+  }, [x, y, sendToGame]);
 
   useEffect(() => {
     if (!player) {

@@ -11,6 +11,9 @@ import { Mesh } from 'three';
 import { Debugger } from './Debugger';
 import { Menu } from './Menu';
 import classes from './App.module.css';
+import { GameMachineContext, MenuMachineContext, RootMachineContext } from './RootMachineContext';
+import { useGameMachine, useMenuMachine, useRootMachine } from './useRootMachine';
+import cx from 'classnames';
 
 const isDevelopmentMode = import.meta.env.MODE === 'development';
 const enableAllEffects = !isDevelopmentMode;
@@ -46,6 +49,7 @@ document.addEventListener('keydown', function (event) {
 // - winning animation
 // - credits screen
 // - quit screen (are you sure you want to quit? => "blue screen of death")
+// - add hover effect on cells
 
 // TODO: think about these ideas:
 // - rubic cube mechanics: rotating the row/column
@@ -53,22 +57,31 @@ document.addEventListener('keydown', function (event) {
 // - rotating to sides and you can go over edges
 
 function App() {
-  const [menuOpened, setMenuOpened] = useState(true);
-  const [gameStarted, setGameStarted] = useState(false);
   const [playerPositions, setPlayerPositions] = useState(new Map<PositionKey, Player>());
   const [isX, setIsX] = useState(true);
   const [lastPosition, setLastPosition] = useState<[player: Player, x: number, y: number] | null>(null);
   const xSymbolRef = useRef<Mesh>(null!);
   const oSymbolRef = useRef<Mesh>(null!);
+  const [rootState, sendToRoot] = useRootMachine();
+  const [menuState] = useMenuMachine();
+  const [gameState] = useGameMachine();
+  const menuRef = MenuMachineContext.useActorRef();
+  const gameRef = GameMachineContext.useActorRef();
 
   useEffect(() => {
-    document.addEventListener('keydown', function (event) {
+    function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
         // TODO: Toggle menu when game already started and menu is opened
-        setMenuOpened(true);
+        sendToRoot({ type: 'pause' });
       }
-    });
-  }, []);
+    }
+
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [sendToRoot]);
 
   function handleCellClick(event: ThreeEvent<MouseEvent>, position: PositionKey, x: number, y: number) {
     event.stopPropagation();
@@ -80,19 +93,13 @@ function App() {
     }
   }
 
-  function handleNewGame() {
-    setMenuOpened(false);
-    setGameStarted(true);
-  }
-
-  function handleResume() {
-    setMenuOpened(false);
-  }
-
   return (
     <Debugger isEnabled={isDevelopmentMode}>
-      <div className={classes.canvasContainer}>
-        <Canvas camera={{ fov: 30, near: 0.1, far: 1000, up: [0, 0, 1], position: [8.5, 8.5, 7.5] }}>
+      <div className={cx(classes.canvasContainer, rootState.matches('loaded') && classes.ready)}>
+        <Canvas
+          camera={{ fov: 30, near: 0.1, far: 1000, up: [0, 0, 1], position: [8.5, 8.5, 7.5] }}
+          onCreated={() => sendToRoot({ type: 'loaded', menuRef, gameRef })}
+        >
           <Suspense fallback={null}>
             {/* TODO: improve fog, make it denser at the ground level (see https://github.com/mrdoob/three.js/blob/master/examples/webgpu_custom_fog.html) */}
             {/* TODO: alternatively implement just screenspace-based gradient on cells' sides and symbols */}
@@ -100,8 +107,10 @@ function App() {
             <color attach="background" args={[background]} />
             {isDevelopmentMode && <OrbitControls />}
             <directionalLight color="#ffedf8" intensity={1.25} position={[50, 35, 100]} />
-            {gameStarted && <Symbols activePlayer={isX ? 'x' : 'o'} xSymbolRef={xSymbolRef} oSymbolRef={oSymbolRef} />}
-            {gameStarted &&
+            {!gameState.matches('idle') && (
+              <Symbols activePlayer={isX ? 'x' : 'o'} xSymbolRef={xSymbolRef} oSymbolRef={oSymbolRef} />
+            )}
+            {!gameState.matches('idle') &&
               times(7, (x: number) =>
                 times(7, (y: number) => (
                   <Cell
@@ -129,9 +138,19 @@ function App() {
           </Suspense>
         </Canvas>
       </div>
-      <Menu open={menuOpened} gameStarted={gameStarted} onNewGame={handleNewGame} onResume={handleResume} />
+      {menuState.hasTag('visible') && <Menu />}
     </Debugger>
   );
 }
 
-export default App;
+const AppStateWrapper = () => (
+  <MenuMachineContext.Provider>
+    <GameMachineContext.Provider>
+      <RootMachineContext.Provider>
+        <App />
+      </RootMachineContext.Provider>
+    </GameMachineContext.Provider>
+  </MenuMachineContext.Provider>
+);
+
+export default AppStateWrapper;

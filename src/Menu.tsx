@@ -3,6 +3,7 @@ import cx from 'classnames';
 import classes from './Menu.module.css';
 import logo1xUrl from './images/logo@1x.png?url';
 import logo2xUrl from './images/logo@2x.png?url';
+import { useGameMachine, useMenuMachine, useRootMachine } from './useRootMachine';
 
 const gridSize = 12;
 
@@ -38,15 +39,11 @@ function render(ctx: CanvasRenderingContext2D, width: number, height: number) {
   drawGrid(ctx, width, height, xOffset + 1, yOffset + 1);
 }
 
-interface MenuProps {
-  open: boolean;
-  gameStarted: boolean;
-  onNewGame: () => void;
-  onResume: () => void;
-}
-
-export const Menu = ({ open, gameStarted, onNewGame, onResume }: MenuProps) => {
+export const Menu = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null!);
+  const [, sendToRoot] = useRootMachine();
+  const [menuState, sendToMenu] = useMenuMachine();
+  const [gameState] = useGameMachine();
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -70,6 +67,14 @@ export const Menu = ({ open, gameStarted, onNewGame, onResume }: MenuProps) => {
     };
   }, []);
 
+  function handleResumeClick() {
+    sendToRoot({ type: 'resume' });
+  }
+
+  function handleNewGameClick() {
+    sendToRoot({ type: 'newGame' });
+  }
+
   function handleCreditsClick() {
     // TODO: implement
   }
@@ -78,18 +83,24 @@ export const Menu = ({ open, gameStarted, onNewGame, onResume }: MenuProps) => {
     // TODO: implement
   }
 
-  // TODO: unmount menu after transition end
+  function handleTransitionEnd() {
+    sendToMenu({ type: 'transitionEnd' });
+  }
+
   return (
-    <div className={cx(classes.menu, open && classes.menuOpen)}>
+    <div
+      className={cx(classes.menu, (menuState.matches('animateIn') || menuState.matches('shown')) && classes.menuOpen)}
+      onTransitionEnd={handleTransitionEnd}
+    >
       <canvas className={classes.canvas} ref={canvasRef} />
       <div className={classes.vignette}></div>
       <div className={classes.logo}>
         <img alt="TacTicOe" src={logo1xUrl} srcSet={`${logo1xUrl} 1x, ${logo2xUrl} 2x`} />
       </div>
       <ul className={classes.items}>
-        {/* TODO: improve Resume appearing right after New Game when implementing xstate */}
-        {gameStarted && <li onClick={onResume}>Resume</li>}
-        <li onClick={onNewGame}>New Game</li>
+        {/* TODO: we should somehow save "resume" flag inside menu itself to avoid "disappearing" when "New game" is clicked */}
+        {gameState.hasTag('resumable') && <li onClick={handleResumeClick}>Resume</li>}
+        <li onClick={handleNewGameClick}>New Game</li>
         <li onClick={handleCreditsClick}>Credits</li>
         <li onClick={handleQuitClick}>Quit</li>
       </ul>

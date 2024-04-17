@@ -2,3 +2,12 @@
   width: 100vw;
   height: 100vh;
 }
+
+.canvasContainer canvas {
+  opacity: 0;
+  transition: opacity 0.25s ease-in-out;
+}
+
+.canvasContainer.ready canvas {
+  opacity: 1;
+}
