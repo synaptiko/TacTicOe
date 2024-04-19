@@ -1,25 +1,26 @@
-import { MutableRefObject, useEffect, useMemo, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { useGLTF } from '@react-three/drei';
-import { BufferGeometry, Group, Mesh } from 'three';
+import { BufferGeometry, Group, Vector3 } from 'three';
 import gsap from 'gsap';
 import symbolsUrl from './objects/symbols.glb?url';
 import { drawingDuration } from './consts';
-import { Player } from './types';
 import { SymbolMaterial, SymbolMaterialWrapper } from './SymbolMaterial';
+import { useGameMachine } from './state/useGameMachine';
+import { Howl } from 'howler';
+import introSoundUrl from './sounds/intro.mp3?url';
 
 useGLTF.preload(symbolsUrl);
 
-type SymbolsProps = {
-  activePlayer?: Player;
-  xSymbolRef: MutableRefObject<Mesh>;
-  oSymbolRef: MutableRefObject<Mesh>;
-};
-
+const introSound = new Howl({ src: [introSoundUrl] });
 const introDuration = 0.75; // seconds
 const highlightDuration = 0.25; // seconds
-const maxIntensity = 20;
+const startIntensity = 0;
+const endIntensity = 20;
+const startPosition = new Vector3(0, 0, 4);
+const endPosition = new Vector3(0, 0, -1.33);
 
-export function Symbols({ activePlayer, xSymbolRef, oSymbolRef }: SymbolsProps) {
+export function Symbols() {
+  const [, sendToGame] = useGameMachine();
   const {
     nodes: { x, o },
   } = useGLTF(symbolsUrl);
@@ -28,76 +29,75 @@ export function Symbols({ activePlayer, xSymbolRef, oSymbolRef }: SymbolsProps) 
   const groupRef = useRef<Group>(null!);
   const xMaterialRef = useRef<SymbolMaterial>(null!);
   const oMaterialRef = useRef<SymbolMaterial>(null!);
-  const activePlayerRef = useRef(activePlayer);
-
-  useMemo(() => (activePlayerRef.current = activePlayer), [activePlayer]);
 
   useEffect(() => {
-    const tween = gsap.to(groupRef.current.position, {
-      x: 0,
-      y: 0,
-      z: -1.33,
+    const introAnimationTween = gsap.fromTo(groupRef.current.position, startPosition, {
+      ...endPosition,
       duration: introDuration,
       ease: 'power4.inOut',
+      paused: true,
     });
-
-    return () => {
-      tween.kill();
-    };
-  }, []);
-
-  useEffect(() => {
-    const tween = gsap.fromTo(
-      activePlayer === 'x' ? xMaterialRef.current : oMaterialRef.current,
+    const xPlayerMoveAnimationTween = gsap.fromTo(
+      xMaterialRef.current,
+      { uEmissiveIntensity: startIntensity },
       {
-        uEmissiveIntensity: 0,
-      },
-      {
-        uEmissiveIntensity: maxIntensity,
+        uEmissiveIntensity: endIntensity,
         duration: highlightDuration,
-        delay: drawingDuration * 2,
+        delay: drawingDuration,
         ease: 'power3.inOut',
+        paused: true,
       }
     );
-
-    // TODO: add slight pulse animation or flicker the intensity
-
-    return () => {
-      setTimeout(
-        () => {
-          // condition only needed due to HMR
-          if (activePlayerRef.current !== activePlayer) {
-            tween.reverse();
-          }
-        },
-        drawingDuration * 1.25 * 1000
-      );
+    const oPlayerMoveAnimationTween = gsap.fromTo(
+      oMaterialRef.current,
+      { uEmissiveIntensity: startIntensity },
+      {
+        uEmissiveIntensity: endIntensity,
+        duration: highlightDuration,
+        delay: drawingDuration,
+        ease: 'power3.inOut',
+        paused: true,
+      }
+    );
+    const introAnimation = () => {
+      introSound.play();
+      introAnimationTween.restart();
+      xPlayerMoveAnimationTween.kill();
+      oPlayerMoveAnimationTween.kill();
+      xMaterialRef.current.uEmissiveIntensity = startIntensity;
+      oMaterialRef.current.uEmissiveIntensity = startIntensity;
     };
-  }, [activePlayer]);
+    const xPlayerTurnAnimation = () => {
+      oPlayerMoveAnimationTween.reverse();
+      xPlayerMoveAnimationTween.restart();
+    };
+    const oPlayerTurnAnimation = () => {
+      xPlayerMoveAnimationTween.reverse();
+      oPlayerMoveAnimationTween.restart();
+    };
+
+    sendToGame({ type: 'registerAnimation', key: 'intro', animation: introAnimation });
+    sendToGame({ type: 'registerAnimation', key: 'xPlayerTurn', animation: xPlayerTurnAnimation });
+    sendToGame({ type: 'registerAnimation', key: 'oPlayerTurn', animation: oPlayerTurnAnimation });
+  }, [sendToGame]);
 
   return (
-    <group ref={groupRef} dispose={null} position={[0, 0, 4]}>
-      <mesh
-        ref={xSymbolRef}
-        geometry={xGeometry}
-        rotation={[Math.PI / 2, -Math.PI, 0]}
-        scale={16.5}
-        position={[-2.8, -10, 0]}
-      >
+    <group ref={groupRef} dispose={null} position={startPosition}>
+      <mesh geometry={xGeometry} rotation={[Math.PI / 2, -Math.PI, 0]} scale={16.5} position={[-2.8, -10, 0]}>
         <SymbolMaterialWrapper
           uPlayer={1}
-          uEmissiveIntensity={0}
-          uMaxIntensity={maxIntensity}
+          uEmissiveIntensity={startIntensity}
+          uMaxIntensity={endIntensity}
           ref={xMaterialRef}
           color="#555"
           emissive="#E72929"
         />
       </mesh>
-      <mesh ref={oSymbolRef} geometry={oGeometry} rotation={[0, Math.PI / 2, 0]} scale={16.5} position={[-10, -2.8, 0]}>
+      <mesh geometry={oGeometry} rotation={[0, Math.PI / 2, 0]} scale={16.5} position={[-10, -2.8, 0]}>
         <SymbolMaterialWrapper
           uPlayer={2}
-          uEmissiveIntensity={0}
-          uMaxIntensity={maxIntensity}
+          uEmissiveIntensity={startIntensity}
+          uMaxIntensity={endIntensity}
           ref={oMaterialRef}
           color="#555"
           emissive="#299CE7"

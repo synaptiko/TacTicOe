@@ -14,7 +14,7 @@
   pointer-events: none;
 }
 
-.menuOpen {
+.shown {
   opacity: 1;
   pointer-events: all;
 }

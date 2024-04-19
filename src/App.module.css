@@ -8,6 +8,6 @@
   transition: opacity 0.25s ease-in-out;
 }
 
-.canvasContainer.ready canvas {
+.canvasContainer.shown canvas {
   opacity: 1;
 }

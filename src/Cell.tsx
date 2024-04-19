@@ -3,7 +3,6 @@ import { useEffect, useMemo, useRef } from 'react';
 import { Mesh, Vector3, Vector4 } from 'three';
 import gsap from 'gsap';
 import { CellMaterial, CellMaterialWrapper } from './CellMaterial';
-import { Player, PositionKey } from './types';
 import {
   drawingDuration,
   edgeSmoothness,
@@ -15,65 +14,66 @@ import {
   symbolThickness,
   xSymbolScale,
 } from './consts';
-import { Howl } from 'howler';
-import introSoundUrl from './sounds/intro.mp3?url';
-import { useGameMachine } from './useRootMachine';
-
-const introSound = new Howl({ src: [introSoundUrl] });
+import { useGameMachine } from './state/useGameMachine';
+import { PositionKey } from './types';
+import { Animation } from './state/GameMachineContext';
 
 type CellProps = {
+  position: PositionKey;
   x: number;
   y: number;
-  player?: Player;
-  onClick: (event: ThreeEvent<MouseEvent>, position: PositionKey, x: number, y: number) => void;
 };
 
-export function Cell({ x, y, player, onClick }: CellProps) {
+export function Cell({ position, x, y }: CellProps) {
   const meshRef = useRef<Mesh>(null!);
   const materialRef = useRef<CellMaterial>(null!);
   const uEdges = useMemo(() => new Vector4(x === 0 ? 0 : 1, y === 0 ? 0 : 1, x === 6 ? 0 : 1, y === 6 ? 0 : 1), [x, y]);
-  const [, sendToGame] = useGameMachine();
+  const [gameState, sendToGame] = useGameMachine();
+  const player = gameState.context.positions.get(position);
+  const startPosition = useMemo(() => new Vector3(x - 3, y - 3, -16), [x, y]);
+  const endPosition = useMemo(() => new Vector3(x - 3, y - 3, -5), [x, y]);
 
   useEffect(() => {
-    introSound.play();
-  }, [x]);
-
-  useEffect(() => {
-    const tween = gsap.to(meshRef.current.position, {
-      x: x - 3,
-      y: y - 3,
-      z: -5,
+    const introAnimationTween = gsap.fromTo(meshRef.current.position, startPosition, {
+      ...endPosition,
       duration: 0.75 + Math.min(x, y) / 10,
       ease: 'power4.inOut',
-      onComplete: () => {
-        sendToGame({ type: 'transitionEnd' });
+      paused: true,
+      onComplete: () => sendToGame({ type: 'transitionEnd' }),
+    });
+    const playerMoveAnimationTween = gsap.fromTo(
+      materialRef.current,
+      {
+        uPlayerFill: 0,
       },
-    });
-
-    return () => {
-      tween.kill();
+      {
+        uPlayerFill: 1,
+        duration: drawingDuration,
+        ease: 'none',
+        paused: true,
+        onComplete: () => {
+          sendToGame({ type: 'transitionEnd' });
+        },
+      }
+    );
+    const introAnimation = () => {
+      introAnimationTween.restart();
     };
-  }, [x, y, sendToGame]);
-
-  useEffect(() => {
-    if (!player) {
-      return;
-    }
-
-    const tween = gsap.to(materialRef.current, {
-      uPlayerFill: 1,
-      duration: drawingDuration,
-      ease: 'none',
-    });
-
-    return () => {
-      tween.kill();
+    const playerMoveAnimation: Animation = ({ selectedPosition }) => {
+      if (selectedPosition?.position === position) {
+        playerMoveAnimationTween.restart();
+      }
     };
-  }, [player]);
+
+    sendToGame({ type: 'registerAnimation', key: 'intro', animation: introAnimation });
+    sendToGame({ type: 'registerAnimation', key: 'playerMove', animation: playerMoveAnimation });
+  }, [sendToGame, startPosition, endPosition, position, x, y]);
 
   function handleClick(event: ThreeEvent<MouseEvent>) {
+    event.stopPropagation();
+
     if (event.normal && event.normal.dot(new Vector3(0, 0, 1)) > 0.99) {
-      onClick(event, `${x}:${y}`, x, y);
+      sendToGame({ type: 'selected', position, x, y });
     }
   }
 

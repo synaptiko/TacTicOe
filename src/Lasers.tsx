@@ -3,18 +3,12 @@ import { Laser } from './Laser';
 import { Group, Object3D, Vector2, Vector4 } from 'three';
 import gsap from 'gsap';
 import { drawingDuration, symbolGap, symbolRadius, xSymbolScale } from './consts';
-import { Player } from './types';
 import { SparksAndSmoke } from './SparksAndSmoke';
 import { Howl } from 'howler';
 import laserSoundUrl from './sounds/laser.mp3?url';
+import { useGameMachine } from './state/useGameMachine';
 
 const laserSound = new Howl({ src: [laserSoundUrl], volume: 10.0 }); // TODO: turn up volume in the mp3 file directly
-
-type LasersProps = {
-  x: number;
-  y: number;
-  player: Player;
-};
 
 class LaserOAnimation {
   constructor(
@@ -133,13 +127,20 @@ class EmitterWithOffset extends Vector4 {
   }
 }
 
-export function Lasers({ x, y, player }: LasersProps) {
+export function Lasers() {
+  const [gameState] = useGameMachine();
+  const { selectedPosition } = gameState.context;
   const laser1Ref = useRef<Group>(null!);
   const laser2Ref = useRef<Group>(null!);
-  const emitter1Ref = useRef(new EmitterWithOffset(x - 3, y - 3));
-  const emitter2Ref = useRef(new EmitterWithOffset(x - 3, y - 3));
+  const emitter1Ref = useRef(new EmitterWithOffset(0, 0));
+  const emitter2Ref = useRef(new EmitterWithOffset(0, 0));
 
   useEffect(() => {
+    if (!selectedPosition) {
+      return;
+    }
+
+    const { x, y, player } = selectedPosition;
     const animations: gsap.TweenTarget[] = [];
 
     if (player === 'x') {
@@ -192,7 +193,13 @@ export function Lasers({ x, y, player }: LasersProps) {
     return () => {
       tween.kill();
     };
-  }, [x, y, player]);
+  }, [selectedPosition]);
+
+  if (!selectedPosition) {
+    return null;
+  }
+
+  const { x, y, player } = selectedPosition;
 
   return (
     <>

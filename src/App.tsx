@@ -1,18 +1,18 @@
-import { Canvas, ThreeEvent } from '@react-three/fiber';
+import { Canvas } from '@react-three/fiber';
 import { times } from 'lodash';
-import { Suspense, useEffect, useRef, useState } from 'react';
+import { Suspense, useEffect } from 'react';
 import { Bloom, ChromaticAberration, EffectComposer, Vignette } from '@react-three/postprocessing';
 import { OrbitControls, StatsGl } from '@react-three/drei';
 import { Cell } from './Cell';
-import { Player, PositionKey } from './types';
 import { Symbols } from './Symbols';
 import { Lasers } from './Lasers';
-import { Mesh } from 'three';
 import { Debugger } from './Debugger';
 import { Menu } from './Menu';
 import classes from './App.module.css';
-import { GameMachineContext, MenuMachineContext, RootMachineContext } from './RootMachineContext';
-import { useGameMachine, useMenuMachine, useRootMachine } from './useRootMachine';
+import { RootMachineContext } from './state/RootMachineContext';
+import { MenuMachineContext } from './state/MenuMachineContext';
+import { GameMachineContext } from './state/GameMachineContext';
+import { useRootMachine } from './state/useRootMachine';
 import cx from 'classnames';
 
 const isDevelopmentMode = import.meta.env.MODE === 'development';
@@ -41,14 +41,17 @@ document.addEventListener('keydown', function (event) {
 });
 
 // TODO: what to finish:
-// - add xstate and state machine for game states
-// - player selection screen (X or O)
+// - rework Lasers to use new animation method too
+// - implement proper pausing (it should stop all animations, including useFrame & particles)
+// - add copy of the Iosevka font!
 // - better "development" mode where I can enable/disabled specific features & animations (or switch to different states)
 // - winning condition
 // - game over screen in menu style (You win/lose! Play again?)
 // - winning animation
+// - player selection screen (X or O)
 // - credits screen
 // - quit screen (are you sure you want to quit? => "blue screen of death")
+// - menu sometimes get stuck in "visible" state; looks like `transitionEnd` is not always sent (sometimes this happens with cells too)
 // - add hover effect on cells
 
 // TODO: think about these ideas:
@@ -57,22 +60,20 @@ document.addEventListener('keydown', function (event) {
 // - rotating to sides and you can go over edges
 
 function App() {
-  const [playerPositions, setPlayerPositions] = useState(new Map<PositionKey, Player>());
-  const [isX, setIsX] = useState(true);
-  const [lastPosition, setLastPosition] = useState<[player: Player, x: number, y: number] | null>(null);
-  const xSymbolRef = useRef<Mesh>(null!);
-  const oSymbolRef = useRef<Mesh>(null!);
   const [rootState, sendToRoot] = useRootMachine();
-  const [menuState] = useMenuMachine();
-  const [gameState] = useGameMachine();
   const menuRef = MenuMachineContext.useActorRef();
   const gameRef = GameMachineContext.useActorRef();
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
-        // TODO: Toggle menu when game already started and menu is opened
-        sendToRoot({ type: 'pause' });
+        const menuSnapshot = menuRef.getSnapshot();
+
+        if (menuSnapshot.hasTag('visible') && menuSnapshot.context.isPaused) {
+          sendToRoot({ type: 'resume' });
+        } else {
+          sendToRoot({ type: 'pause' });
+        }
       }
     }
 
@@ -81,21 +82,11 @@ function App() {
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [sendToRoot]);
-
-  function handleCellClick(event: ThreeEvent<MouseEvent>, position: PositionKey, x: number, y: number) {
-    event.stopPropagation();
-
-    if (!playerPositions.has(position)) {
-      setPlayerPositions((map) => map.set(position, isX ? 'x' : 'o'));
-      setIsX((prev) => !prev);
-      setLastPosition([isX ? 'x' : 'o', x, y]);
-    }
-  }
+  }, [sendToRoot, menuRef]);
 
   return (
     <Debugger isEnabled={isDevelopmentMode}>
-      <div className={cx(classes.canvasContainer, rootState.matches('loaded') && classes.ready)}>
+      <div className={cx(classes.canvasContainer, rootState.matches('loaded') && classes.shown)}>
         <Canvas
           camera={{ fov: 30, near: 0.1, far: 1000, up: [0, 0, 1], position: [8.5, 8.5, 7.5] }}
           onCreated={() => sendToRoot({ type: 'loaded', menuRef, gameRef })}
@@ -107,22 +98,11 @@ function App() {
             <color attach="background" args={[background]} />
             {isDevelopmentMode && <OrbitControls />}
             <directionalLight color="#ffedf8" intensity={1.25} position={[50, 35, 100]} />
-            {!gameState.matches('idle') && (
-              <Symbols activePlayer={isX ? 'x' : 'o'} xSymbolRef={xSymbolRef} oSymbolRef={oSymbolRef} />
+            <Symbols />
+            {times(7, (x: number) =>
+              times(7, (y: number) => <Cell key={`${x}:${y}`} position={`${x}:${y}`} x={x} y={y} />)
             )}
-            {!gameState.matches('idle') &&
-              times(7, (x: number) =>
-                times(7, (y: number) => (
-                  <Cell
-                    key={`${x}:${y}`}
-                    x={x}
-                    y={y}
-                    player={playerPositions.get(`${x}:${y}`)}
-                    onClick={handleCellClick}
-                  />
-                ))
-              )}
-            {lastPosition && <Lasers player={lastPosition[0]} x={lastPosition[1]} y={lastPosition[2]} />}
+            <Lasers />
             <EffectComposer>
               <Bloom
                 luminanceThreshold={0}
@@ -138,7 +118,7 @@ function App() {
           </Suspense>
         </Canvas>
       </div>
-      {menuState.hasTag('visible') && <Menu />}
+      <Menu />
     </Debugger>
   );
 }

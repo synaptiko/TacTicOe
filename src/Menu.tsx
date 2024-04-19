@@ -3,7 +3,8 @@ import cx from 'classnames';
 import classes from './Menu.module.css';
 import logo1xUrl from './images/logo@1x.png?url';
 import logo2xUrl from './images/logo@2x.png?url';
-import { useGameMachine, useMenuMachine, useRootMachine } from './useRootMachine';
+import { useRootMachine } from './state/useRootMachine';
+import { useMenuMachine } from './state/useMenuMachine';
 
 const gridSize = 12;
 
@@ -39,11 +40,10 @@ function render(ctx: CanvasRenderingContext2D, width: number, height: number) {
   drawGrid(ctx, width, height, xOffset + 1, yOffset + 1);
 }
 
-export const Menu = () => {
+const MenuInternal = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null!);
   const [, sendToRoot] = useRootMachine();
   const [menuState, sendToMenu] = useMenuMachine();
-  const [gameState] = useGameMachine();
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -89,7 +89,7 @@ export const Menu = () => {
 
   return (
     <div
-      className={cx(classes.menu, (menuState.matches('animateIn') || menuState.matches('shown')) && classes.menuOpen)}
+      className={cx(classes.menu, (menuState.matches('animateIn') || menuState.matches('shown')) && classes.shown)}
       onTransitionEnd={handleTransitionEnd}
     >
       <canvas className={classes.canvas} ref={canvasRef} />
@@ -98,12 +98,17 @@ export const Menu = () => {
         <img alt="TacTicOe" src={logo1xUrl} srcSet={`${logo1xUrl} 1x, ${logo2xUrl} 2x`} />
       </div>
       <ul className={classes.items}>
-        {/* TODO: we should somehow save "resume" flag inside menu itself to avoid "disappearing" when "New game" is clicked */}
-        {gameState.hasTag('resumable') && <li onClick={handleResumeClick}>Resume</li>}
+        {menuState.context.isPaused && <li onClick={handleResumeClick}>Resume</li>}
         <li onClick={handleNewGameClick}>New Game</li>
         <li onClick={handleCreditsClick}>Credits</li>
         <li onClick={handleQuitClick}>Quit</li>
       </ul>
     </div>
   );
+};
+
+export const Menu = () => {
+  const [menuState] = useMenuMachine();
+
+  return menuState.hasTag('visible') && <MenuInternal />;
 };
