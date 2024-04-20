@@ -43,7 +43,6 @@ document.addEventListener('keydown', function (event) {
 // TODO: what to finish:
 // - rework Lasers to use new animation method too
 // - implement proper pausing (it should stop all animations, including useFrame & particles)
-// - add copy of the Iosevka font!
 // - better "development" mode where I can enable/disabled specific features & animations (or switch to different states)
 // - winning condition
 // - game over screen in menu style (You win/lose! Play again?)

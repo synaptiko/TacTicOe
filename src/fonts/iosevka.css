@@ -1,0 +1,6 @@
+@font-face {
+  font-family: 'IosevkaTermSubset';
+  src: url('/src/fonts/IosevkaTerm-Heavy.woff2') format('woff2');
+  font-weight: 900;
+  font-style: normal;
+}
