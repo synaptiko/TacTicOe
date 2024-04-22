@@ -17,6 +17,7 @@ import {
 import { useGameMachine } from './state/useGameMachine';
 import { PositionKey } from './types';
 import { Animation } from './state/GameMachineContext';
+import { usePausableTween } from './usePausableTween';
 
 type CellProps = {
   position: PositionKey;
@@ -32,29 +33,34 @@ export function Cell({ position, x, y }: CellProps) {
   const player = gameState.context.positions.get(position);
   const startPosition = useMemo(() => new Vector3(x - 3, y - 3, -16), [x, y]);
   const endPosition = useMemo(() => new Vector3(x - 3, y - 3, -5), [x, y]);
+  const pausable = usePausableTween();
 
   useEffect(() => {
-    const introAnimationTween = gsap.fromTo(meshRef.current.position, startPosition, {
-      ...endPosition,
-      duration: 0.75 + Math.min(x, y) / 10,
-      ease: 'power4.inOut',
-      paused: true,
-      onComplete: () => sendToGame({ type: 'transitionEnd' }),
-    });
-    const playerMoveAnimationTween = gsap.fromTo(
-      materialRef.current,
-      {
-        uPlayerFill: 0,
-      },
-      {
-        uPlayerFill: 1,
-        duration: drawingDuration,
-        ease: 'none',
+    const introAnimationTween = pausable(
+      gsap.fromTo(meshRef.current.position, startPosition, {
+        ...endPosition,
+        duration: 0.75 + Math.min(x, y) / 10,
+        ease: 'power4.inOut',
         paused: true,
-        onComplete: () => {
-          sendToGame({ type: 'transitionEnd' });
+        onComplete: () => sendToGame({ type: 'transitionEnd' }),
+      })
+    );
+    const playerMoveAnimationTween = pausable(
+      gsap.fromTo(
+        materialRef.current,
+        {
+          uPlayerFill: 0,
         },
-      }
+        {
+          uPlayerFill: 1,
+          duration: drawingDuration,
+          ease: 'none',
+          paused: true,
+          onComplete: () => {
+            sendToGame({ type: 'transitionEnd' });
+          },
+        }
+      )
     );
     const introAnimation = () => {
       introAnimationTween.restart();
@@ -67,7 +73,16 @@ export function Cell({ position, x, y }: CellProps) {
 
     sendToGame({ type: 'registerAnimation', key: 'intro', animation: introAnimation });
     sendToGame({ type: 'registerAnimation', key: 'playerMove', animation: playerMoveAnimation });
-  }, [sendToGame, startPosition, endPosition, position, x, y]);
+
+    return () => {
+      introAnimationTween.unregister();
+      introAnimationTween.kill();
+      playerMoveAnimationTween.unregister();
+      playerMoveAnimationTween.kill();
+      sendToGame({ type: 'unregisterAnimation', key: 'intro', animation: introAnimation });
+      sendToGame({ type: 'unregisterAnimation', key: 'playerMove', animation: playerMoveAnimation });
+    };
+  }, [sendToGame, pausable, startPosition, endPosition, position, x, y]);
 
   function handleClick(event: ThreeEvent<MouseEvent>) {
     event.stopPropagation();

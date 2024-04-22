@@ -15,24 +15,11 @@ import { GameMachineContext } from './state/GameMachineContext';
 import { useRootMachine } from './state/useRootMachine';
 import cx from 'classnames';
 import { isDevelopmentMode } from './isDevelopmentMode';
+import { toggleFullscreen } from './utils/toggleFullscreen';
 
 const enableAllEffects = !isDevelopmentMode;
 
 const background = '#7b627c';
-
-function toggleFullscreen() {
-  if (!document.fullscreenElement) {
-    // If the document is not in fullscreen mode, request fullscreen on the document body
-    document.documentElement.requestFullscreen().catch((err) => {
-      console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
-    });
-  } else {
-    // If the document is already in fullscreen, exit fullscreen mode
-    if (document.exitFullscreen) {
-      document.exitFullscreen();
-    }
-  }
-}
 
 document.addEventListener('keydown', function (event) {
   if (event.key === 'f') {
@@ -41,21 +28,16 @@ document.addEventListener('keydown', function (event) {
 });
 
 // TODO: what to finish:
-// - implement proper pausing (it should stop all animations, including useFrame & particles)
+// - rework menu to also use gsap for animations to unify the codebase and fix the problem with `transitionEnd` event
 // - better "development" mode where I can enable/disabled specific features & animations (or switch to different states)
 // - winning condition
 // - game over screen in menu style (You win/lose! Play again?)
 // - winning animation
 // - player selection screen (X or O)
+// - add hover effect on cells
 // - credits screen
 // - quit screen (are you sure you want to quit? => "blue screen of death")
-// - menu sometimes get stuck in "visible" state; looks like `transitionEnd` is not always sent
-// - add hover effect on cells
-
-// TODO: think about these ideas:
-// - rubic cube mechanics: rotating the row/column
-//   - maybe if you win, that row/column will rotate? what to do with diagonals then?
-// - rotating to sides and you can go over edges
+// - address or remove all remaining TODOs
 
 function App() {
   const [rootState, sendToRoot] = useRootMachine();

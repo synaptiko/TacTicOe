@@ -8,6 +8,7 @@ import { SymbolMaterial, SymbolMaterialWrapper } from './SymbolMaterial';
 import { useGameMachine } from './state/useGameMachine';
 import { Howl } from 'howler';
 import introSoundUrl from './sounds/intro.mp3?url';
+import { usePausableTween } from './usePausableTween';
 
 useGLTF.preload(symbolsUrl);
 
@@ -29,35 +30,42 @@ export function Symbols() {
   const groupRef = useRef<Group>(null!);
   const xMaterialRef = useRef<SymbolMaterial>(null!);
   const oMaterialRef = useRef<SymbolMaterial>(null!);
+  const pausable = usePausableTween();
 
   useEffect(() => {
-    const introAnimationTween = gsap.fromTo(groupRef.current.position, startPosition, {
-      ...endPosition,
-      duration: introDuration,
-      ease: 'power4.inOut',
-      paused: true,
-    });
-    const xPlayerMoveAnimationTween = gsap.fromTo(
-      xMaterialRef.current,
-      { uEmissiveIntensity: startIntensity },
-      {
-        uEmissiveIntensity: endIntensity,
-        duration: highlightDuration,
-        delay: drawingDuration,
-        ease: 'power3.inOut',
+    const introAnimationTween = pausable(
+      gsap.fromTo(groupRef.current.position, startPosition, {
+        ...endPosition,
+        duration: introDuration,
+        ease: 'power4.inOut',
         paused: true,
-      }
+      })
     );
-    const oPlayerMoveAnimationTween = gsap.fromTo(
-      oMaterialRef.current,
-      { uEmissiveIntensity: startIntensity },
-      {
-        uEmissiveIntensity: endIntensity,
-        duration: highlightDuration,
-        delay: drawingDuration,
-        ease: 'power3.inOut',
-        paused: true,
-      }
+    const xPlayerMoveAnimationTween = pausable(
+      gsap.fromTo(
+        xMaterialRef.current,
+        { uEmissiveIntensity: startIntensity },
+        {
+          uEmissiveIntensity: endIntensity,
+          duration: highlightDuration,
+          delay: drawingDuration,
+          ease: 'power3.inOut',
+          paused: true,
+        }
+      )
+    );
+    const oPlayerMoveAnimationTween = pausable(
+      gsap.fromTo(
+        oMaterialRef.current,
+        { uEmissiveIntensity: startIntensity },
+        {
+          uEmissiveIntensity: endIntensity,
+          duration: highlightDuration,
+          delay: drawingDuration,
+          ease: 'power3.inOut',
+          paused: true,
+        }
+      )
     );
     const introAnimation = () => {
       introSound.play();
@@ -79,7 +87,19 @@ export function Symbols() {
     sendToGame({ type: 'registerAnimation', key: 'intro', animation: introAnimation });
     sendToGame({ type: 'registerAnimation', key: 'xPlayerTurn', animation: xPlayerTurnAnimation });
     sendToGame({ type: 'registerAnimation', key: 'oPlayerTurn', animation: oPlayerTurnAnimation });
-  }, [sendToGame]);
+
+    return () => {
+      introAnimationTween.unregister();
+      introAnimationTween.kill();
+      xPlayerMoveAnimationTween.unregister();
+      xPlayerMoveAnimationTween.kill();
+      oPlayerMoveAnimationTween.unregister();
+      oPlayerMoveAnimationTween.kill();
+      sendToGame({ type: 'unregisterAnimation', key: 'intro', animation: introAnimation });
+      sendToGame({ type: 'unregisterAnimation', key: 'xPlayerTurn', animation: xPlayerTurnAnimation });
+      sendToGame({ type: 'unregisterAnimation', key: 'oPlayerTurn', animation: oPlayerTurnAnimation });
+    };
+  }, [sendToGame, pausable]);
 
   return (
     <group ref={groupRef} dispose={null} position={startPosition}>

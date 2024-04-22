@@ -29,7 +29,8 @@ export const gameMachine = setup({
       | { type: 'pause' }
       | { type: 'selected'; position: PositionKey; x: number; y: number }
       | { type: 'transitionEnd' }
-      | { type: 'registerAnimation'; key: AnimationKey; animation: Animation },
+      | { type: 'registerAnimation'; key: AnimationKey; animation: Animation }
+      | { type: 'unregisterAnimation'; key: AnimationKey; animation: Animation },
   },
 }).createMachine({
   id: 'game',
@@ -123,6 +124,19 @@ export const gameMachine = setup({
       actions: assign(({ context: { animations }, event }) => ({
         animations: animations.set(event.key, [...(animations.get(event.key) ?? []), event.animation]),
       })),
+    },
+    unregisterAnimation: {
+      actions: assign(({ context: { animations }, event }) => {
+        const updatedAnimations = animations.get(event.key)?.filter((animation) => animation !== event.animation);
+
+        if (updatedAnimations?.length === 0) {
+          animations.delete(event.key);
+        } else if (updatedAnimations) {
+          animations.set(event.key, updatedAnimations);
+        }
+
+        return { animations };
+      }),
     },
   },
 });

@@ -9,6 +9,7 @@ import laserSoundUrl from './sounds/laser.mp3?url';
 import { useGameMachine } from './state/useGameMachine';
 import { Animation } from './state/GameMachineContext';
 import invariant from 'tiny-invariant';
+import { usePausableTween } from './usePausableTween';
 
 const laserSound = new Howl({ src: [laserSoundUrl], volume: 10.0 }); // TODO: turn up volume in the mp3 file directly
 
@@ -148,6 +149,7 @@ export function Lasers() {
   const laser2Ref = useRef<Group>(null!);
   const sparksAndSmokeEmitter1Ref = useRef(new EmitterWithOffset(0, 0));
   const sparksAndSmokeEmitter2Ref = useRef(new EmitterWithOffset(0, 0));
+  const pausable = usePausableTween();
 
   useEffect(() => {
     function onStart() {
@@ -164,45 +166,49 @@ export function Lasers() {
       sparksAndSmokeEmitter2Ref.current.setW(0);
     }
 
-    const xPlayerMoveAnimationTween = gsap.fromTo(
-      (() => {
-        const w = symbolGap;
-        const h = (symbolRadius - symbolGap) * xSymbolScale;
+    const xPlayerMoveAnimationTween = pausable(
+      gsap.fromTo(
+        (() => {
+          const w = symbolGap;
+          const h = (symbolRadius - symbolGap) * xSymbolScale;
 
-        return [
-          new LaserXAnimation(laser1Ref, sparksAndSmokeEmitter1Ref, w, h),
-          new LaserXAnimation(laser2Ref, sparksAndSmokeEmitter2Ref, w, h, true),
-        ];
-      })(),
-      {
-        value: 0,
-      },
-      {
-        value: 1,
-        duration: drawingDuration,
-        ease: 'none',
-        paused: true,
-        onStart,
-        onComplete,
-      }
+          return [
+            new LaserXAnimation(laser1Ref, sparksAndSmokeEmitter1Ref, w, h),
+            new LaserXAnimation(laser2Ref, sparksAndSmokeEmitter2Ref, w, h, true),
+          ];
+        })(),
+        {
+          value: 0,
+        },
+        {
+          value: 1,
+          duration: drawingDuration,
+          ease: 'none',
+          paused: true,
+          onStart,
+          onComplete,
+        }
+      )
     );
-    const oPlayerMoveAnimationTween = gsap.fromTo(
-      [
-        new LaserOAnimation(laser1Ref, sparksAndSmokeEmitter1Ref, symbolRadius),
-        new LaserOAnimation(laser2Ref, sparksAndSmokeEmitter2Ref, symbolRadius - symbolGap, Math.PI),
-      ],
-      {
-        value: 0,
-      },
-      {
-        value: 2 * Math.PI,
-        runBackwards: true,
-        duration: drawingDuration,
-        ease: 'none',
-        paused: true,
-        onStart,
-        onComplete,
-      }
+    const oPlayerMoveAnimationTween = pausable(
+      gsap.fromTo(
+        [
+          new LaserOAnimation(laser1Ref, sparksAndSmokeEmitter1Ref, symbolRadius),
+          new LaserOAnimation(laser2Ref, sparksAndSmokeEmitter2Ref, symbolRadius - symbolGap, Math.PI),
+        ],
+        {
+          value: 0,
+        },
+        {
+          value: 2 * Math.PI,
+          runBackwards: true,
+          duration: drawingDuration,
+          ease: 'none',
+          paused: true,
+          onStart,
+          onComplete,
+        }
+      )
     );
     const playerMoveAnimation: Animation = ({ selectedPosition }) => {
       invariant(selectedPosition, 'selectedPosition should be defined');
@@ -222,7 +228,15 @@ export function Lasers() {
     };
 
     sendToGame({ type: 'registerAnimation', key: 'playerMove', animation: playerMoveAnimation });
-  }, [sendToGame]);
+
+    return () => {
+      xPlayerMoveAnimationTween.unregister();
+      xPlayerMoveAnimationTween.kill();
+      oPlayerMoveAnimationTween.unregister();
+      oPlayerMoveAnimationTween.kill();
+      sendToGame({ type: 'unregisterAnimation', key: 'playerMove', animation: playerMoveAnimation });
+    };
+  }, [sendToGame, pausable]);
 
   return (
     <>

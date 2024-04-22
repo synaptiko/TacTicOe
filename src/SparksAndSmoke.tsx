@@ -411,7 +411,7 @@ const Simulation = ({ player, emitterRefs: [emitter1Ref, emitter2Ref], onFrame }
   useRenderTargetDebugger('Simulation output', simulationOutputDebugger);
 
   useFrameWithDebugger(({ gl, clock /*, debug*/ }, delta) => {
-    const elapsed = clock.elapsedTime;
+    const elapsed = clock.getElapsedTime();
     const emitter1Enabled = emitter1Ref.current.w === 1;
     const emitter2Enabled = emitter2Ref.current.w === 1;
 

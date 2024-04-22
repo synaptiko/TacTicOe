@@ -7,8 +7,6 @@ import { menuMachine } from './MenuMachineContext';
 import { sendToMenu } from './sendToMenu';
 import { isDevelopmentMode } from '../isDevelopmentMode';
 
-// TODO: create a set of hooks with selectors (ie. useIsPaused etc.)
-
 export type RootMachineContext = {
   menuRef?: ActorRefFrom<typeof menuMachine>;
   gameRef?: ActorRefFrom<typeof gameMachine>;
