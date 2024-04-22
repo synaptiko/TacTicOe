@@ -1,7 +1,8 @@
 import { createBrowserInspector } from '@statelyai/inspect';
 import { createActorContext } from '@xstate/react';
-import { assign, setup } from 'xstate';
+import { ActorOptions, assign, setup } from 'xstate';
 import { Player, PositionKey } from '../types';
+import { isDevelopmentMode } from '../isDevelopmentMode';
 
 type GameMachineContext = {
   isPaused: boolean;
@@ -125,6 +126,13 @@ export const gameMachine = setup({
     },
   },
 });
-const { inspect } = createBrowserInspector();
 
-export const GameMachineContext = createActorContext(gameMachine, { inspect });
+const options: ActorOptions<typeof gameMachine> = {};
+
+if (isDevelopmentMode) {
+  const { inspect } = createBrowserInspector();
+
+  options.inspect = inspect;
+}
+
+export const GameMachineContext = createActorContext(gameMachine, options);

@@ -1,10 +1,11 @@
 import { createBrowserInspector } from '@statelyai/inspect';
 import { createActorContext } from '@xstate/react';
-import { ActorRefFrom, assign, setup } from 'xstate';
+import { ActorOptions, ActorRefFrom, assign, setup } from 'xstate';
 import { gameMachine } from './GameMachineContext';
 import { sendToGame } from './sendToGame';
 import { menuMachine } from './MenuMachineContext';
 import { sendToMenu } from './sendToMenu';
+import { isDevelopmentMode } from '../isDevelopmentMode';
 
 // TODO: create a set of hooks with selectors (ie. useIsPaused etc.)
 
@@ -61,6 +62,12 @@ const rootMachine = setup({
   },
 });
 
-const { inspect } = createBrowserInspector();
+const options: ActorOptions<typeof rootMachine> = {};
 
-export const RootMachineContext = createActorContext(rootMachine, { inspect });
+if (isDevelopmentMode) {
+  const { inspect } = createBrowserInspector();
+
+  options.inspect = inspect;
+}
+
+export const RootMachineContext = createActorContext(rootMachine, options);

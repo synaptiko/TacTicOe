@@ -1,6 +1,7 @@
 import { createBrowserInspector } from '@statelyai/inspect';
 import { createActorContext } from '@xstate/react';
-import { assign, setup } from 'xstate';
+import { ActorOptions, assign, setup } from 'xstate';
+import { isDevelopmentMode } from '../isDevelopmentMode';
 
 export const menuMachine = setup({
   types: {
@@ -46,6 +47,13 @@ export const menuMachine = setup({
     },
   },
 });
-const { inspect } = createBrowserInspector();
 
-export const MenuMachineContext = createActorContext(menuMachine, { inspect });
+const options: ActorOptions<typeof menuMachine> = {};
+
+if (isDevelopmentMode) {
+  const { inspect } = createBrowserInspector();
+
+  options.inspect = inspect;
+}
+
+export const MenuMachineContext = createActorContext(menuMachine, options);

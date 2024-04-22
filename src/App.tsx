@@ -14,8 +14,8 @@ import { MenuMachineContext } from './state/MenuMachineContext';
 import { GameMachineContext } from './state/GameMachineContext';
 import { useRootMachine } from './state/useRootMachine';
 import cx from 'classnames';
+import { isDevelopmentMode } from './isDevelopmentMode';
 
-const isDevelopmentMode = import.meta.env.MODE === 'development';
 const enableAllEffects = !isDevelopmentMode;
 
 const background = '#7b627c';
@@ -41,7 +41,6 @@ document.addEventListener('keydown', function (event) {
 });
 
 // TODO: what to finish:
-// - remove "inspect" of state machines from production build
 // - implement proper pausing (it should stop all animations, including useFrame & particles)
 // - better "development" mode where I can enable/disabled specific features & animations (or switch to different states)
 // - winning condition
