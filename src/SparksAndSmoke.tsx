@@ -191,8 +191,12 @@ function fillEmitters(
   startIndex: number,
   spread: number,
   amount: number,
-  playerRef: MutableRefObject<Player>
+  playerRef: MutableRefObject<Player | undefined>
 ) {
+  if (playerRef.current === undefined) {
+    return startIndex;
+  }
+
   const length = texture.image.data.length;
   const oneThirdIndex = length / 3;
   const twoThirdsIndex = 2 * oneThirdIndex;
@@ -294,7 +298,7 @@ declare module '@react-three/fiber' {
 }
 
 type SimulationProps = {
-  player: Player;
+  player?: Player;
   emitterRefs: [emitter1Ref: MutableRefObject<Vector4>, emitter2Ref: MutableRefObject<Vector4>];
   onFrame: (texture: Texture) => void;
 };
@@ -399,7 +403,7 @@ const Simulation = ({ player, emitterRefs: [emitter1Ref, emitter2Ref], onFrame }
     undefined,
     undefined,
   ]);
-  const playerRef = useRef<Player>(player);
+  const playerRef = useRef<Player | undefined>(player);
   useMemo(() => (playerRef.current = player), [player]);
 
   useTextureDebugger('Emitters', emittersDebugger);
@@ -500,7 +504,7 @@ const Simulation = ({ player, emitterRefs: [emitter1Ref, emitter2Ref], onFrame }
 };
 
 type SparksAndSmokeProps = {
-  player: Player;
+  player?: Player;
   emitterRefs: SimulationProps['emitterRefs'];
 };
 

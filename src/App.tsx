@@ -41,7 +41,7 @@ document.addEventListener('keydown', function (event) {
 });
 
 // TODO: what to finish:
-// - rework Lasers to use new animation method too
+// - remove "inspect" of state machines from production build
 // - implement proper pausing (it should stop all animations, including useFrame & particles)
 // - better "development" mode where I can enable/disabled specific features & animations (or switch to different states)
 // - winning condition
@@ -50,7 +50,7 @@ document.addEventListener('keydown', function (event) {
 // - player selection screen (X or O)
 // - credits screen
 // - quit screen (are you sure you want to quit? => "blue screen of death")
-// - menu sometimes get stuck in "visible" state; looks like `transitionEnd` is not always sent (sometimes this happens with cells too)
+// - menu sometimes get stuck in "visible" state; looks like `transitionEnd` is not always sent
 // - add hover effect on cells
 
 // TODO: think about these ideas:

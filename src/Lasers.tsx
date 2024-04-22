@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { MutableRefObject, useEffect, useRef } from 'react';
 import { Laser } from './Laser';
 import { Group, Object3D, Vector2, Vector4 } from 'three';
 import gsap from 'gsap';
@@ -7,19 +7,26 @@ import { SparksAndSmoke } from './SparksAndSmoke';
 import { Howl } from 'howler';
 import laserSoundUrl from './sounds/laser.mp3?url';
 import { useGameMachine } from './state/useGameMachine';
+import { Animation } from './state/GameMachineContext';
+import invariant from 'tiny-invariant';
 
 const laserSound = new Howl({ src: [laserSoundUrl], volume: 10.0 }); // TODO: turn up volume in the mp3 file directly
 
 class LaserOAnimation {
   constructor(
-    private laser: Object3D,
-    private emitter: Vector4,
+    private laser: MutableRefObject<Object3D>,
+    private emitter: MutableRefObject<Vector4>,
     private amplitude: number,
     private offset: number = 0
   ) {}
 
   set value(angle: number) {
-    const { laser, emitter, amplitude, offset } = this;
+    const {
+      laser: { current: laser },
+      emitter: { current: emitter },
+      amplitude,
+      offset,
+    } = this;
 
     laser.position.set(amplitude * Math.cos(angle - offset), amplitude * Math.sin(angle - offset), 0);
     emitter.setX(laser.position.x);
@@ -33,8 +40,8 @@ class LaserXAnimation {
   private totalPathLength: number = 0;
 
   constructor(
-    private laser: Object3D,
-    private emitter: Vector4,
+    private laser: MutableRefObject<Object3D>,
+    private emitter: MutableRefObject<Vector4>,
     private w: number,
     private h: number,
     private flip: boolean = false
@@ -74,7 +81,14 @@ class LaserXAnimation {
   }
 
   set value(progress: number) {
-    const { laser, emitter, path, segmentLengths, totalPathLength } = this;
+    const {
+      laser: { current: laser },
+      emitter: { current: emitter },
+      path,
+      segmentLengths,
+      totalPathLength,
+    } = this;
+
     let cumulativeLength = 0;
 
     for (let i = 1; i < path.length; i++) {
@@ -128,88 +142,100 @@ class EmitterWithOffset extends Vector4 {
 }
 
 export function Lasers() {
-  const [gameState] = useGameMachine();
+  const [gameState, sendToGame] = useGameMachine();
   const { selectedPosition } = gameState.context;
   const laser1Ref = useRef<Group>(null!);
   const laser2Ref = useRef<Group>(null!);
-  const emitter1Ref = useRef(new EmitterWithOffset(0, 0));
-  const emitter2Ref = useRef(new EmitterWithOffset(0, 0));
+  const sparksAndSmokeEmitter1Ref = useRef(new EmitterWithOffset(0, 0));
+  const sparksAndSmokeEmitter2Ref = useRef(new EmitterWithOffset(0, 0));
 
   useEffect(() => {
-    if (!selectedPosition) {
-      return;
+    function onStart() {
+      laserSound.play();
+      laser1Ref.current.visible = true;
+      laser2Ref.current.visible = true;
+      sparksAndSmokeEmitter1Ref.current.setW(1);
+      sparksAndSmokeEmitter2Ref.current.setW(1);
+    }
+    function onComplete() {
+      laser1Ref.current.visible = false;
+      laser2Ref.current.visible = false;
+      sparksAndSmokeEmitter1Ref.current.setW(0);
+      sparksAndSmokeEmitter2Ref.current.setW(0);
     }
 
-    const { x, y, player } = selectedPosition;
-    const animations: gsap.TweenTarget[] = [];
+    const xPlayerMoveAnimationTween = gsap.fromTo(
+      (() => {
+        const w = symbolGap;
+        const h = (symbolRadius - symbolGap) * xSymbolScale;
 
-    if (player === 'x') {
-      const w = symbolGap;
-      const h = (symbolRadius - symbolGap) * xSymbolScale;
-
-      animations.push(
-        new LaserXAnimation(laser1Ref.current, emitter1Ref.current, w, h),
-        new LaserXAnimation(laser2Ref.current, emitter2Ref.current, w, h, true)
-      );
-    } else {
-      animations.push(
-        new LaserOAnimation(laser1Ref.current, emitter1Ref.current, symbolRadius),
-        new LaserOAnimation(laser2Ref.current, emitter2Ref.current, symbolRadius - symbolGap, Math.PI)
-      );
-    }
-
-    laser1Ref.current.visible = true;
-    laser2Ref.current.visible = true;
-
-    const tween = gsap.fromTo(
-      animations,
+        return [
+          new LaserXAnimation(laser1Ref, sparksAndSmokeEmitter1Ref, w, h),
+          new LaserXAnimation(laser2Ref, sparksAndSmokeEmitter2Ref, w, h, true),
+        ];
+      })(),
       {
         value: 0,
       },
       {
-        value: player === 'x' ? 1 : 2 * Math.PI,
-        runBackwards: player === 'o',
+        value: 1,
         duration: drawingDuration,
         ease: 'none',
-        onStart: () => {
-          // FIXME: we should adjust x/y on higher level most probably; in order to not duplicate the logic all over the place (and have ability to change the dimensions of the field, if wanted)
-          emitter1Ref.current.setXOffset(x - 3);
-          emitter1Ref.current.setYOffset(y - 3);
-          emitter1Ref.current.setW(1);
-          emitter2Ref.current.setXOffset(x - 3);
-          emitter2Ref.current.setYOffset(y - 3);
-          emitter2Ref.current.setW(1);
-          laserSound.play();
-        },
-        onComplete: () => {
-          laser1Ref.current.visible = false;
-          laser2Ref.current.visible = false;
-          emitter1Ref.current.setW(0);
-          emitter2Ref.current.setW(0);
-        },
+        paused: true,
+        onStart,
+        onComplete,
       }
     );
+    const oPlayerMoveAnimationTween = gsap.fromTo(
+      [
+        new LaserOAnimation(laser1Ref, sparksAndSmokeEmitter1Ref, symbolRadius),
+        new LaserOAnimation(laser2Ref, sparksAndSmokeEmitter2Ref, symbolRadius - symbolGap, Math.PI),
+      ],
+      {
+        value: 0,
+      },
+      {
+        value: 2 * Math.PI,
+        runBackwards: true,
+        duration: drawingDuration,
+        ease: 'none',
+        paused: true,
+        onStart,
+        onComplete,
+      }
+    );
+    const playerMoveAnimation: Animation = ({ selectedPosition }) => {
+      invariant(selectedPosition, 'selectedPosition should be defined');
+      const { x, y, player } = selectedPosition;
 
-    return () => {
-      tween.kill();
+      // FIXME: we should adjust x/y on higher level most probably; in order to not duplicate the logic all over the place (and have ability to change the dimensions of the field, if wanted)
+      sparksAndSmokeEmitter1Ref.current.setXOffset(x - 3);
+      sparksAndSmokeEmitter1Ref.current.setYOffset(y - 3);
+      sparksAndSmokeEmitter2Ref.current.setXOffset(x - 3);
+      sparksAndSmokeEmitter2Ref.current.setYOffset(y - 3);
+
+      if (player === 'x') {
+        xPlayerMoveAnimationTween.restart();
+      } else {
+        oPlayerMoveAnimationTween.restart();
+      }
     };
-  }, [selectedPosition]);
 
-  if (!selectedPosition) {
-    return null;
-  }
-
-  const { x, y, player } = selectedPosition;
+    sendToGame({ type: 'registerAnimation', key: 'playerMove', animation: playerMoveAnimation });
+  }, [sendToGame]);
 
   return (
     <>
       <group ref={laser1Ref} visible={false}>
-        <Laser x={x} y={y} player={player} />
+        {selectedPosition && <Laser {...selectedPosition} />}
       </group>
       <group ref={laser2Ref} visible={false}>
-        <Laser x={x} y={y} player={player} />
+        {selectedPosition && <Laser {...selectedPosition} />}
       </group>
-      <SparksAndSmoke player={player} emitterRefs={[emitter1Ref, emitter2Ref]} />
+      <SparksAndSmoke
+        player={selectedPosition?.player}
+        emitterRefs={[sparksAndSmokeEmitter1Ref, sparksAndSmokeEmitter2Ref]}
+      />
     </>
   );
 }
