@@ -17,7 +17,7 @@ import cx from 'classnames';
 import { isDevelopmentMode } from './isDevelopmentMode';
 import { toggleFullscreen } from './utils/toggleFullscreen';
 
-const enableAllEffects = !isDevelopmentMode;
+const enableAllEffects = !isDevelopmentMode || true;
 
 const background = '#7b627c';
 
@@ -28,13 +28,11 @@ document.addEventListener('keydown', function (event) {
 });
 
 // TODO: what to finish:
-// - rework menu to also use gsap for animations to unify the codebase and fix the problem with `transitionEnd` event
 // - better "development" mode where I can enable/disabled specific features & animations (or switch to different states)
-// - winning condition
-// - game over screen in menu style (You win/lose! Play again?)
-// - winning animation
-// - player selection screen (X or O)
+// - winning condition and animation
+// - game over screen in menu style (X/O win! Play again?)
 // - add hover effect on cells
+// - player selection screen (X or O)
 // - credits screen
 // - quit screen (are you sure you want to quit? => "blue screen of death")
 // - address or remove all remaining TODOs

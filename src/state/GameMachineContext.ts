@@ -28,7 +28,8 @@ export const gameMachine = setup({
       | { type: 'resume' }
       | { type: 'pause' }
       | { type: 'selected'; position: PositionKey; x: number; y: number }
-      | { type: 'transitionEnd' }
+      | { type: 'introAnimationEnd' }
+      | { type: 'playerMoveAnimationEnd' }
       | { type: 'registerAnimation'; key: AnimationKey; animation: Animation }
       | { type: 'unregisterAnimation'; key: AnimationKey; animation: Animation },
   },
@@ -48,7 +49,7 @@ export const gameMachine = setup({
     new: {
       entry: playAnimations('intro'),
       on: {
-        transitionEnd: 'xPlayerTurn',
+        introAnimationEnd: 'xPlayerTurn',
       },
     },
     xPlayerTurn: {
@@ -74,7 +75,7 @@ export const gameMachine = setup({
       tags: 'initialized',
       entry: playAnimations('playerMove'),
       on: {
-        transitionEnd: 'oPlayerTurn',
+        playerMoveAnimationEnd: 'oPlayerTurn',
       },
     },
     oPlayerTurn: {
@@ -100,7 +101,7 @@ export const gameMachine = setup({
       tags: 'initialized',
       entry: playAnimations('playerMove'),
       on: {
-        transitionEnd: 'xPlayerTurn',
+        playerMoveAnimationEnd: 'xPlayerTurn',
       },
     },
   },

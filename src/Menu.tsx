@@ -1,10 +1,10 @@
 import { useEffect, useRef } from 'react';
-import cx from 'classnames';
 import classes from './Menu.module.css';
 import logo1xUrl from './images/logo@1x.png?url';
 import logo2xUrl from './images/logo@2x.png?url';
 import { useRootMachine } from './state/useRootMachine';
 import { useMenuMachine } from './state/useMenuMachine';
+import gsap from 'gsap';
 
 const gridSize = 12;
 
@@ -40,7 +40,8 @@ function render(ctx: CanvasRenderingContext2D, width: number, height: number) {
   drawGrid(ctx, width, height, xOffset + 1, yOffset + 1);
 }
 
-const MenuInternal = () => {
+export const Menu = () => {
+  const menuRef = useRef<HTMLDivElement>(null!);
   const canvasRef = useRef<HTMLCanvasElement>(null!);
   const [, sendToRoot] = useRootMachine();
   const [menuState, sendToMenu] = useMenuMachine();
@@ -67,6 +68,53 @@ const MenuInternal = () => {
     };
   }, []);
 
+  useEffect(() => {
+    const inAnimationTween = gsap.fromTo(
+      menuRef.current,
+      {
+        opacity: 0,
+      },
+      {
+        opacity: 1,
+        duration: 0.25,
+        paused: true,
+        onStart: () => menuRef.current.classList.add(classes.shown),
+        onComplete: () => sendToMenu({ type: 'inAnimationEnd' }),
+      }
+    );
+    const outAnimationTween = gsap.fromTo(
+      menuRef.current,
+      {
+        opacity: 1,
+      },
+      {
+        opacity: 0,
+        duration: 0.25,
+        paused: true,
+        onComplete: () => {
+          menuRef.current.classList.remove(classes.shown);
+          sendToMenu({ type: 'outAnimationEnd' });
+        },
+      }
+    );
+    const inAnimation = () => {
+      inAnimationTween.restart();
+    };
+    const outAnimation = () => {
+      outAnimationTween.restart();
+    };
+
+    sendToMenu({ type: 'registerAnimation', key: 'in', animation: inAnimation });
+    sendToMenu({ type: 'registerAnimation', key: 'out', animation: outAnimation });
+
+    return () => {
+      inAnimationTween.kill();
+      outAnimationTween.kill();
+      sendToMenu({ type: 'unregisterAnimation', key: 'in', animation: inAnimation });
+      sendToMenu({ type: 'unregisterAnimation', key: 'out', animation: outAnimation });
+    };
+  }, [sendToMenu]);
+
   function handleResumeClick() {
     sendToRoot({ type: 'resume' });
   }
@@ -83,15 +131,8 @@ const MenuInternal = () => {
     // TODO: implement
   }
 
-  function handleTransitionEnd() {
-    sendToMenu({ type: 'transitionEnd' });
-  }
-
   return (
-    <div
-      className={cx(classes.menu, (menuState.matches('animateIn') || menuState.matches('shown')) && classes.shown)}
-      onTransitionEnd={handleTransitionEnd}
-    >
+    <div className={classes.menu} ref={menuRef}>
       <canvas className={classes.canvas} ref={canvasRef} />
       <div className={classes.vignette}></div>
       <div className={classes.logo}>
@@ -105,10 +146,4 @@ const MenuInternal = () => {
       </ul>
     </div>
   );
-};
-
-export const Menu = () => {
-  const [menuState] = useMenuMachine();
-
-  return menuState.hasTag('visible') && <MenuInternal />;
 };

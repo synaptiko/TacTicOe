@@ -6,17 +6,14 @@
   right: 0;
   z-index: 1;
   background-color: rgba(8, 8, 8, 0.8);
-  display: flex;
   align-items: center;
   flex-direction: column;
-  transition: opacity 0.25s ease-in-out;
+  display: none;
   opacity: 0;
-  pointer-events: none;
 }
 
 .shown {
-  opacity: 1;
-  pointer-events: all;
+  display: flex;
 }
 
 .canvas {

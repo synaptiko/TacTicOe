@@ -3,16 +3,37 @@ import { createActorContext } from '@xstate/react';
 import { ActorOptions, assign, setup } from 'xstate';
 import { isDevelopmentMode } from '../isDevelopmentMode';
 
+type MenuMachineContext = {
+  isPaused?: true;
+  animations: Map<AnimationKey, Animation[]>;
+};
+
+type AnimationKey = 'in' | 'out';
+export type Animation = (context: MenuMachineContext) => void;
+
+function playAnimations(key: AnimationKey) {
+  return async ({ context }: { context: MenuMachineContext }) =>
+    context.animations.get(key)?.forEach((animation) => animation(context));
+}
+
 export const menuMachine = setup({
   types: {
-    context: {} as {
-      isPaused?: true;
-    },
-    events: {} as { type: 'ready' } | { type: 'show'; isPaused?: true } | { type: 'hide' } | { type: 'transitionEnd' },
+    context: {} as MenuMachineContext,
+    events: {} as
+      | { type: 'ready' }
+      | { type: 'show'; isPaused?: true }
+      | { type: 'hide' }
+      | { type: 'inAnimationEnd' }
+      | { type: 'outAnimationEnd' }
+      | { type: 'registerAnimation'; key: AnimationKey; animation: Animation }
+      | { type: 'unregisterAnimation'; key: AnimationKey; animation: Animation },
   },
 }).createMachine({
   id: 'menu',
   initial: 'idle',
+  context: {
+    animations: new Map<AnimationKey, Animation[]>(),
+  },
   states: {
     idle: {
       on: { ready: 'ready' },
@@ -23,7 +44,8 @@ export const menuMachine = setup({
     },
     animateIn: {
       tags: 'visible',
-      on: { transitionEnd: 'shown' },
+      entry: playAnimations('in'),
+      on: { inAnimationEnd: 'shown' },
     },
     shown: {
       tags: 'visible',
@@ -33,7 +55,8 @@ export const menuMachine = setup({
     },
     animateOut: {
       tags: 'visible',
-      on: { transitionEnd: 'hidden' },
+      entry: playAnimations('out'),
+      on: { outAnimationEnd: 'hidden' },
     },
     hidden: {
       on: {
@@ -44,6 +67,26 @@ export const menuMachine = setup({
           target: 'ready',
         },
       },
+    },
+  },
+  on: {
+    registerAnimation: {
+      actions: assign(({ context: { animations }, event }) => ({
+        animations: animations.set(event.key, [...(animations.get(event.key) ?? []), event.animation]),
+      })),
+    },
+    unregisterAnimation: {
+      actions: assign(({ context: { animations }, event }) => {
+        const updatedAnimations = animations.get(event.key)?.filter((animation) => animation !== event.animation);
+
+        if (updatedAnimations?.length === 0) {
+          animations.delete(event.key);
+        } else if (updatedAnimations) {
+          animations.set(event.key, updatedAnimations);
+        }
+
+        return { animations };
+      }),
     },
   },
 });

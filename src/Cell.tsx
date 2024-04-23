@@ -42,7 +42,7 @@ export function Cell({ position, x, y }: CellProps) {
         duration: 0.75 + Math.min(x, y) / 10,
         ease: 'power4.inOut',
         paused: true,
-        onComplete: () => sendToGame({ type: 'transitionEnd' }),
+        onComplete: () => sendToGame({ type: 'introAnimationEnd' }),
       })
     );
     const playerMoveAnimationTween = pausable(
@@ -57,7 +57,7 @@ export function Cell({ position, x, y }: CellProps) {
           ease: 'none',
           paused: true,
           onComplete: () => {
-            sendToGame({ type: 'transitionEnd' });
+            sendToGame({ type: 'playerMoveAnimationEnd' });
           },
         }
       )
