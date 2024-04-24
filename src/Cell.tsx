@@ -16,7 +16,7 @@ import {
 } from './consts';
 import { useGameMachine } from './state/useGameMachine';
 import { PositionKey } from './types';
-import { Animation } from './state/GameMachineContext';
+import { Animation, GameMachineContext } from './state/GameMachineContext';
 import { usePausableTween } from './usePausableTween';
 
 type CellProps = {
@@ -29,6 +29,7 @@ export function Cell({ position, x, y }: CellProps) {
   const meshRef = useRef<Mesh>(null!);
   const materialRef = useRef<CellMaterial>(null!);
   const uEdges = useMemo(() => new Vector4(x === 0 ? 0 : 1, y === 0 ? 0 : 1, x === 6 ? 0 : 1, y === 6 ? 0 : 1), [x, y]);
+  const gameRef = GameMachineContext.useActorRef();
   const [gameState, sendToGame] = useGameMachine();
   const player = gameState.context.positions.get(position);
   const startPosition = useMemo(() => new Vector3(x - 3, y - 3, -16), [x, y]);
@@ -36,6 +37,7 @@ export function Cell({ position, x, y }: CellProps) {
   const pausable = usePausableTween();
 
   useEffect(() => {
+    const gameState = gameRef.getSnapshot();
     const introAnimationTween = pausable(
       gsap.fromTo(meshRef.current.position, startPosition, {
         ...endPosition,
@@ -74,6 +76,15 @@ export function Cell({ position, x, y }: CellProps) {
     sendToGame({ type: 'registerAnimation', key: 'intro', animation: introAnimation });
     sendToGame({ type: 'registerAnimation', key: 'playerMove', animation: playerMoveAnimation });
 
+    // FIXME: remove all this hacky snapshotting logic once the game is finished
+    if (gameState.hasTag('initialized')) {
+      meshRef.current.position.copy(endPosition);
+
+      if (gameState.context.positions.has(position)) {
+        materialRef.current.uPlayerFill = 1;
+      }
+    }
+
     return () => {
       introAnimationTween.unregister();
       introAnimationTween.kill();
@@ -82,7 +93,7 @@ export function Cell({ position, x, y }: CellProps) {
       sendToGame({ type: 'unregisterAnimation', key: 'intro', animation: introAnimation });
       sendToGame({ type: 'unregisterAnimation', key: 'playerMove', animation: playerMoveAnimation });
     };
-  }, [sendToGame, pausable, startPosition, endPosition, position, x, y]);
+  }, [sendToGame, pausable, startPosition, endPosition, position, x, y, gameRef]);
 
   function handleClick(event: ThreeEvent<MouseEvent>) {
     event.stopPropagation();

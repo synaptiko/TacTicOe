@@ -13,17 +13,14 @@ export type RootMachineContext = {
 };
 
 const rootMachine = setup({
-  actors: {
-    menu: menuMachine,
-    game: gameMachine,
-  },
-  types: {
-    context: {} as RootMachineContext,
-    events: {} as
+  types: {} as {
+    context: RootMachineContext;
+    events:
       | { type: 'loaded'; menuRef: ActorRefFrom<typeof menuMachine>; gameRef: ActorRefFrom<typeof gameMachine> }
       | { type: 'newGame' }
       | { type: 'resume' }
-      | { type: 'pause' },
+      | { type: 'pause' };
+    tags: never;
   },
 }).createMachine({
   id: 'tacTicOe',

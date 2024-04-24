@@ -21,9 +21,9 @@ function playAnimations(key: AnimationKey) {
 }
 
 export const gameMachine = setup({
-  types: {
-    context: {} as GameMachineContext,
-    events: {} as
+  types: {} as {
+    context: GameMachineContext;
+    events:
       | { type: 'newGame' }
       | { type: 'resume' }
       | { type: 'pause' }
@@ -31,7 +31,8 @@ export const gameMachine = setup({
       | { type: 'introAnimationEnd' }
       | { type: 'playerMoveAnimationEnd' }
       | { type: 'registerAnimation'; key: AnimationKey; animation: Animation }
-      | { type: 'unregisterAnimation'; key: AnimationKey; animation: Animation },
+      | { type: 'unregisterAnimation'; key: AnimationKey; animation: Animation };
+    tags: 'initialized' | 'selectable';
   },
 }).createMachine({
   id: 'game',
@@ -79,7 +80,7 @@ export const gameMachine = setup({
       },
     },
     oPlayerTurn: {
-      tags: ['initalized', 'selectable'],
+      tags: ['initialized', 'selectable'],
       entry: [assign({ currentPlayer: 'o' }), playAnimations('oPlayerTurn')],
       on: {
         selected: {

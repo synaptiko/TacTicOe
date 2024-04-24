@@ -17,16 +17,17 @@ function playAnimations(key: AnimationKey) {
 }
 
 export const menuMachine = setup({
-  types: {
-    context: {} as MenuMachineContext,
-    events: {} as
+  types: {} as {
+    context: MenuMachineContext;
+    events:
       | { type: 'ready' }
       | { type: 'show'; isPaused?: true }
       | { type: 'hide' }
       | { type: 'inAnimationEnd' }
       | { type: 'outAnimationEnd' }
       | { type: 'registerAnimation'; key: AnimationKey; animation: Animation }
-      | { type: 'unregisterAnimation'; key: AnimationKey; animation: Animation },
+      | { type: 'unregisterAnimation'; key: AnimationKey; animation: Animation };
+    tags: 'visible';
   },
 }).createMachine({
   id: 'menu',

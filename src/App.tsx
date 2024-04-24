@@ -16,7 +16,9 @@ import { useRootMachine } from './state/useRootMachine';
 import cx from 'classnames';
 import { isDevelopmentMode } from './isDevelopmentMode';
 import { toggleFullscreen } from './utils/toggleFullscreen';
+import { stringify, parse } from 'flatted';
 
+// TODO: remove this (and other similar places) once the game is finished
 const enableAllEffects = !isDevelopmentMode || true;
 
 const background = '#7b627c';
@@ -28,7 +30,6 @@ document.addEventListener('keydown', function (event) {
 });
 
 // TODO: what to finish:
-// - better "development" mode where I can enable/disabled specific features & animations (or switch to different states)
 // - winning condition and animation
 // - game over screen in menu style (X/O win! Play again?)
 // - add hover effect on cells
@@ -39,6 +40,7 @@ document.addEventListener('keydown', function (event) {
 
 function App() {
   const [rootState, sendToRoot] = useRootMachine();
+  const rootRef = RootMachineContext.useActorRef();
   const menuRef = MenuMachineContext.useActorRef();
   const gameRef = GameMachineContext.useActorRef();
 
@@ -52,6 +54,11 @@ function App() {
         } else {
           sendToRoot({ type: 'pause' });
         }
+        // FIXME: remove all this hacky snapshotting logic once the game is finished
+      } else if (event.key === 's') {
+        saveSnapshot(rootRef, menuRef, gameRef);
+      } else if (event.key === 'd') {
+        deleteSnapshot();
       }
     }
 
@@ -60,7 +67,7 @@ function App() {
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [sendToRoot, menuRef]);
+  }, [sendToRoot, rootRef, menuRef, gameRef]);
 
   return (
     <Debugger isEnabled={isDevelopmentMode}>
@@ -101,14 +108,90 @@ function App() {
   );
 }
 
-const AppStateWrapper = () => (
-  <MenuMachineContext.Provider>
-    <GameMachineContext.Provider>
-      <RootMachineContext.Provider>
-        <App />
-      </RootMachineContext.Provider>
-    </GameMachineContext.Provider>
-  </MenuMachineContext.Provider>
-);
+// FIXME: remove all this hacky snapshotting logic once the game is finished
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function saveSnapshot(rootRef: any, menuRef: any, gameRef: any) {
+  const snapshot = {
+    root: rootRef.getPersistedSnapshot(),
+    menu: menuRef.getPersistedSnapshot(),
+    game: gameRef.getPersistedSnapshot(),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any;
+
+  snapshot.root.context = { ...snapshot.root.context };
+  delete snapshot.root.context.menuRef;
+  delete snapshot.root.context.gameRef;
+  snapshot.menu.context = { ...snapshot.menu.context };
+  delete snapshot.menu.context.animations;
+  snapshot.game.context = { ...snapshot.game.context };
+  delete snapshot.game.context.animations;
+  localStorage.setItem(
+    'snapshot',
+    stringify(snapshot, (_key, value) => {
+      if (value instanceof Map) {
+        return { $map: [...value.entries()] };
+      }
+      return value;
+    })
+  );
+}
+
+// FIXME: remove all this hacky snapshotting logic once the game is finished
+function deleteSnapshot() {
+  localStorage.removeItem('snapshot');
+}
+
+// FIXME: remove all this hacky snapshotting logic once the game is finished
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getSnapshot(): any {
+  const raw = localStorage.getItem('snapshot');
+
+  if (raw) {
+    const snapshot = parse(raw, (_key, value) => {
+      if (value && value['$map']) {
+        return new Map(value['$map']);
+      }
+
+      return value;
+    });
+
+    snapshot.menu.context.animations = new Map();
+    snapshot.game.context.animations = new Map();
+
+    return snapshot;
+  } else {
+    return undefined;
+  }
+}
+
+// FIXME: remove all this hacky snapshotting logic once the game is finished
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const RootMachineContextWithSnapshot = ({ snapshot }: { snapshot: any }) => {
+  const menuRef = MenuMachineContext.useActorRef();
+  const gameRef = GameMachineContext.useActorRef();
+
+  if (snapshot) {
+    snapshot.context.menuRef = menuRef;
+    snapshot.context.gameRef = gameRef;
+  }
+
+  return (
+    <RootMachineContext.Provider options={{ snapshot }}>
+      <App />
+    </RootMachineContext.Provider>
+  );
+};
+
+const AppStateWrapper = () => {
+  const snapshot = getSnapshot();
+
+  return (
+    <MenuMachineContext.Provider options={{ snapshot: snapshot?.menu }}>
+      <GameMachineContext.Provider options={{ snapshot: snapshot?.game }}>
+        <RootMachineContextWithSnapshot snapshot={snapshot?.root} />
+      </GameMachineContext.Provider>
+    </MenuMachineContext.Provider>
+  );
+};
 
 export default AppStateWrapper;

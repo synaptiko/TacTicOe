@@ -9,6 +9,7 @@ import { useGameMachine } from './state/useGameMachine';
 import { Howl } from 'howler';
 import introSoundUrl from './sounds/intro.mp3?url';
 import { usePausableTween } from './usePausableTween';
+import { GameMachineContext } from './state/GameMachineContext';
 
 useGLTF.preload(symbolsUrl);
 
@@ -21,6 +22,7 @@ const startPosition = new Vector3(0, 0, 4);
 const endPosition = new Vector3(0, 0, -1.33);
 
 export function Symbols() {
+  const gameRef = GameMachineContext.useActorRef();
   const [, sendToGame] = useGameMachine();
   const {
     nodes: { x, o },
@@ -33,6 +35,7 @@ export function Symbols() {
   const pausable = usePausableTween();
 
   useEffect(() => {
+    const gameState = gameRef.getSnapshot();
     const introAnimationTween = pausable(
       gsap.fromTo(groupRef.current.position, startPosition, {
         ...endPosition,
@@ -88,6 +91,21 @@ export function Symbols() {
     sendToGame({ type: 'registerAnimation', key: 'xPlayerTurn', animation: xPlayerTurnAnimation });
     sendToGame({ type: 'registerAnimation', key: 'oPlayerTurn', animation: oPlayerTurnAnimation });
 
+    // FIXME: remove all this hacky snapshotting logic once the game is finished
+    if (gameState.hasTag('initialized')) {
+      groupRef.current.position.copy(endPosition);
+    }
+
+    // FIXME: remove all this hacky snapshotting logic once the game is finished
+    if (gameState.matches('xPlayerTurn')) {
+      xMaterialRef.current.uEmissiveIntensity = endIntensity;
+    }
+
+    // FIXME: remove all this hacky snapshotting logic once the game is finished
+    if (gameState.matches('oPlayerTurn')) {
+      oMaterialRef.current.uEmissiveIntensity = endIntensity;
+    }
+
     return () => {
       introAnimationTween.unregister();
       introAnimationTween.kill();
@@ -99,7 +117,7 @@ export function Symbols() {
       sendToGame({ type: 'unregisterAnimation', key: 'xPlayerTurn', animation: xPlayerTurnAnimation });
       sendToGame({ type: 'unregisterAnimation', key: 'oPlayerTurn', animation: oPlayerTurnAnimation });
     };
-  }, [sendToGame, pausable]);
+  }, [sendToGame, pausable, gameRef]);
 
   return (
     <group ref={groupRef} dispose={null} position={startPosition}>

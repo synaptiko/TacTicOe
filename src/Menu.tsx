@@ -5,6 +5,7 @@ import logo2xUrl from './images/logo@2x.png?url';
 import { useRootMachine } from './state/useRootMachine';
 import { useMenuMachine } from './state/useMenuMachine';
 import gsap from 'gsap';
+import { MenuMachineContext } from './state/MenuMachineContext';
 
 const gridSize = 12;
 
@@ -41,13 +42,14 @@ function render(ctx: CanvasRenderingContext2D, width: number, height: number) {
 }
 
 export const Menu = () => {
-  const menuRef = useRef<HTMLDivElement>(null!);
-  const canvasRef = useRef<HTMLCanvasElement>(null!);
+  const menuElementRef = useRef<HTMLDivElement>(null!);
+  const canvasElementRef = useRef<HTMLCanvasElement>(null!);
   const [, sendToRoot] = useRootMachine();
   const [menuState, sendToMenu] = useMenuMachine();
+  const menuRef = MenuMachineContext.useActorRef();
 
   useEffect(() => {
-    const canvas = canvasRef.current;
+    const canvas = canvasElementRef.current;
 
     function resizeCanvas() {
       const width = window.innerWidth;
@@ -69,8 +71,9 @@ export const Menu = () => {
   }, []);
 
   useEffect(() => {
+    const menuState = menuRef.getSnapshot();
     const inAnimationTween = gsap.fromTo(
-      menuRef.current,
+      menuElementRef.current,
       {
         opacity: 0,
       },
@@ -78,12 +81,12 @@ export const Menu = () => {
         opacity: 1,
         duration: 0.25,
         paused: true,
-        onStart: () => menuRef.current.classList.add(classes.shown),
+        onStart: () => menuElementRef.current.classList.add(classes.shown),
         onComplete: () => sendToMenu({ type: 'inAnimationEnd' }),
       }
     );
     const outAnimationTween = gsap.fromTo(
-      menuRef.current,
+      menuElementRef.current,
       {
         opacity: 1,
       },
@@ -92,7 +95,7 @@ export const Menu = () => {
         duration: 0.25,
         paused: true,
         onComplete: () => {
-          menuRef.current.classList.remove(classes.shown);
+          menuElementRef.current.classList.remove(classes.shown);
           sendToMenu({ type: 'outAnimationEnd' });
         },
       }
@@ -107,13 +110,18 @@ export const Menu = () => {
     sendToMenu({ type: 'registerAnimation', key: 'in', animation: inAnimation });
     sendToMenu({ type: 'registerAnimation', key: 'out', animation: outAnimation });
 
+    // FIXME: remove all this hacky snapshotting logic once the game is finished
+    if (menuState.matches('shown')) {
+      menuElementRef.current.classList.add(classes.shown);
+    }
+
     return () => {
       inAnimationTween.kill();
       outAnimationTween.kill();
       sendToMenu({ type: 'unregisterAnimation', key: 'in', animation: inAnimation });
       sendToMenu({ type: 'unregisterAnimation', key: 'out', animation: outAnimation });
     };
-  }, [sendToMenu]);
+  }, [sendToMenu, menuRef]);
 
   function handleResumeClick() {
     sendToRoot({ type: 'resume' });
@@ -132,8 +140,8 @@ export const Menu = () => {
   }
 
   return (
-    <div className={classes.menu} ref={menuRef}>
-      <canvas className={classes.canvas} ref={canvasRef} />
+    <div className={classes.menu} ref={menuElementRef}>
+      <canvas className={classes.canvas} ref={canvasElementRef} />
       <div className={classes.vignette}></div>
       <div className={classes.logo}>
         <img alt="TacTicOe" src={logo1xUrl} srcSet={`${logo1xUrl} 1x, ${logo2xUrl} 2x`} />
