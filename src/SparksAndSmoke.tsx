@@ -410,7 +410,7 @@ const Simulation = ({ player, emitterRefs: [emitter1Ref, emitter2Ref], onFrame }
   useTextureDebugger('Simulation initial input', simulationInitialInputDebugger);
   useRenderTargetDebugger('Simulation output', simulationOutputDebugger);
 
-  useFrameWithDebugger(({ gl, clock /*, debug*/ }, delta) => {
+  useFrameWithDebugger(({ gl, clock, debug }, delta) => {
     const elapsed = clock.getElapsedTime();
     const emitter1Enabled = emitter1Ref.current.w === 1;
     const emitter2Enabled = emitter2Ref.current.w === 1;
@@ -465,14 +465,14 @@ const Simulation = ({ player, emitterRefs: [emitter1Ref, emitter2Ref], onFrame }
 
       emittersTexture.needsUpdate = true;
 
-      // debug.expose('Emitters', emittersTexture);
+      debug.expose('Emitters', emittersTexture);
     }
 
     const [writeTarget, readTarget, initPhase] = targets.current;
 
-    // if (initPhase) {
-    //   debug.expose('Simulation initial input', simulationMaterialRef.current.uniforms.uParticles.value);
-    // }
+    if (initPhase) {
+      debug.expose('Simulation initial input', simulationMaterialRef.current.uniforms.uParticles.value);
+    }
 
     if (!initPhase) {
       simulationMaterialRef.current.uniforms.uParticles.value = readTarget.texture;
@@ -486,7 +486,7 @@ const Simulation = ({ player, emitterRefs: [emitter1Ref, emitter2Ref], onFrame }
 
     onFrame(writeTarget.texture);
 
-    // debug.expose('Simulation output', writeTarget);
+    debug.expose('Simulation output', writeTarget);
 
     targets.current = [readTarget, writeTarget];
   });
